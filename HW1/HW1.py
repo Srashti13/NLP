@@ -12,15 +12,21 @@ from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
 import itertools
 from sklearn.feature_extraction.text import CountVectorizer
+from collections import defaultdict
 
 def main():
     '''
     main function
     '''
-    vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed = get_train_vocab()
+    vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train = get_train_vocab()
     train_BOW_freq, train_BOW_binary, train_BOW_freq_stemmed, train_BOW_binary_stemmed = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed)
     P_positive, P_negative  = get_class_priors()
     wordlikelihood_freq, wordlikelihood_freq_stem, wordlikelihood_binary, wordlikelihood_binary_stem = get_perword_likelihood(vocabulary, vocabulary_stemmed, train_BOW_freq, train_BOW_binary)
+
+    #LR_model = Logistic_Regression_L2_SGD(n_iter=1, batch_size=len(train_BOW_freq))
+    #LR_model.fit(train_BOW_binary, y_train)
+    #predictions = LR_model.predict(train_BOW_freq)
+    #print("Accuracy: {:.0f}%".format(sum(predictions.flatten() == y_train)/len(y_train)*100))
 
 def get_train_vocab():
     '''
@@ -58,20 +64,20 @@ def get_train_vocab():
     trainingdocs_stemmed = []
     vocabulary = []
     vocabulary_stemmed = []
-
+    y_train = []
     #create megadocument of all training tweets stemmed and not stemmed
     for folder in os.listdir('Data/train'):
         for f in os.listdir(os.path.join('Data/train',folder)):
             tweet = open(os.path.join('Data/train',folder,f),encoding="utf8").read()
-            # print(tweet)
+            y_train.append(folder)
             trainingdocs.append(tokenize(tweet,False)) #don't stem
-            # trainingdocs_stemmed.append(tokenize(tweet,True))# stem
+            trainingdocs_stemmed.append(tokenize(tweet,True))# stem
 
     #raw python to get unique vocabulary words from the mega training documents
     vocabulary = list(set(list(itertools.chain.from_iterable(trainingdocs))))
-    # print(vocabulary[:100])
     vocabulary_stemmed = list(set(list(itertools.chain.from_iterable(trainingdocs_stemmed))))
-    # print(vocabulary_stemmed[:100])
+    y_train = np.array(list(map(lambda x: 1 if x == 'pos' else 0, y_train)))
+
 
     #using sklearn to convert mega documents to feature vectors and get vocab  -- is this cheating?
     # vec = CountVectorizer(tokenizer=lambda x: x,lowercase = False)
@@ -85,33 +91,61 @@ def get_train_vocab():
         
     return vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed
 
-def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
+def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed): 
     '''
     Extract Features: Convert documents to vectors using Bag of Words (BoW) representation. Do
     this in two ways: keeping frequency count where each word is represented by its count in each
     document, keeping binary representation that only keeps track of presence (or not) of a word in
     a document.
     '''
-    #gettings frequency based bag of words feature vectors -- currently too slow...
-    train_BOW_freq = pd.DataFrame(0,index=np.arange(25000),columns=vocabulary)
-    print(train_BOW_freq.head())
-    i=0
-    for twt in trainingdocs:
-        i+=1
-        for word in twt:
-            if word in vocabulary:
-                train_BOW_freq.loc[train_BOW_freq.index[i]][word] = train_BOW_freq.loc[train_BOW_freq.index[i]][word] + 1
-                print(i)
-                # print(word)
-                # print(train_BOW_freq.loc[train_BOW_freq.index[i]][word])
-    print(train_BOW_freq.head())
+    ##### Bag of Words Frequency Count #####
+    ncol = len(vocabulary)
+    nrow = len(trainingdocs)
+    trainbow_freq = np.zeros((nrow,ncol), dtype=np.int8)
 
-    #these will be similar to above...
-    train_BOW_binary = pd.DataFrame()
-    train_BOW_freq_stemmed = pd.DataFrame()
-    train_BOW_binary_stemmed = pd.DataFrame()
+    ncol_stem = len(vocabulary_stemmed)
+    nrow_stem = len(trainingdocs_stemmed)
+    trainbow_stem_freq = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
+    
+    # creating a dictionary where the key is the distinct vocab word and the
+    # value is the index that will be used in the matrix
+    vocab_dict = defaultdict(int)
+    for k, v in enumerate(vocabulary):
+        vocab_dict[v] = k
+        
+    stem_vocab_dict = defaultdict(int)
+    for k, v in enumerate(vocabulary_stemmed):
+        stem_vocab_dict[v] = k
+        
+    # mapping the word counts to the matrix
+    for n, doc in enumerate(trainingdocs):
+        for word in doc:
+            if word in vocab_dict:
+                trainbow_freq[n, vocab_dict[word]] += 1
+    
+    
+    for n, doc in enumerate(trainingdocs_stemmed):
+        for word in doc:
+            if word in stem_vocab_dict:
+                trainbow_stem_freq[n, stem_vocab_dict[word]] += 1
+    
 
-    return train_BOW_freq, train_BOW_binary, train_BOW_freq_stemmed, train_BOW_binary_stemmed
+    ##### Bag of Words Binary Count #####
+    trainbow_binary = np.zeros((nrow,ncol), dtype=np.int8)
+    trainbow_stem_binary = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
+    
+    # mapping the word counts to the matrix
+    for n, doc in enumerate(trainingdocs):
+        for word in doc:
+            if word in vocab_dict:
+                trainbow_binary[n, vocab_dict[word]] = 1
+                                
+    for n, doc in enumerate(trainingdocs_stemmed):
+        for word in doc:
+            if word in stem_vocab_dict:
+                trainbow_stem_binary[n, stem_vocab_dict[word]] = 1
+            
+    return trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary
 
 def get_class_priors():
     '''
