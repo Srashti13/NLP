@@ -53,13 +53,13 @@ def get_train_vocab():
             tokens = stemmed
         return tokens
 
-
-
+    #initalize variables
     trainingdocs = []
     trainingdocs_stemmed = []
     vocabulary = []
     vocabulary_stemmed = []
 
+    #create megadocument of all training tweets stemmed and not stemmed
     for folder in os.listdir('Data/train'):
         for f in os.listdir(os.path.join('Data/train',folder)):
             tweet = open(os.path.join('Data/train',folder,f),encoding="utf8").read()
@@ -67,13 +67,13 @@ def get_train_vocab():
             trainingdocs.append(tokenize(tweet,False)) #don't stem
             # trainingdocs_stemmed.append(tokenize(tweet,True))# stem
 
-    #raw python to get vocab
+    #raw python to get unique vocabulary words from the mega training documents
     vocabulary = list(set(list(itertools.chain.from_iterable(trainingdocs))))
     # print(vocabulary[:100])
     vocabulary_stemmed = list(set(list(itertools.chain.from_iterable(trainingdocs_stemmed))))
     # print(vocabulary_stemmed[:100])
 
-    #using sklearn -- is this cheating?
+    #using sklearn to convert mega documents to feature vectors and get vocab  -- is this cheating?
     # vec = CountVectorizer(tokenizer=lambda x: x,lowercase = False)
     # count_feature_vector = vec.fit_transform(trainingdocs)
     # vocabulary = vec.get_feature_names()
@@ -92,6 +92,7 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
     document, keeping binary representation that only keeps track of presence (or not) of a word in
     a document.
     '''
+    #gettings frequency based bag of words feature vectors -- currently too slow...
     train_BOW_freq = pd.DataFrame(0,index=np.arange(25000),columns=vocabulary)
     print(train_BOW_freq.head())
     i=0
@@ -105,7 +106,7 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
                 # print(train_BOW_freq.loc[train_BOW_freq.index[i]][word])
     print(train_BOW_freq.head())
 
-
+    #these will be similar to above...
     train_BOW_binary = pd.DataFrame()
     train_BOW_freq_stemmed = pd.DataFrame()
     train_BOW_binary_stemmed = pd.DataFrame()
