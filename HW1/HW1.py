@@ -131,5 +131,67 @@ def get_perword_likelihood(vocabulary, vocabulary_stemmed, train_BOW_freq, train
 
     return wordlikelihood
 
+class Logistic_Regression_L2_SGD:
+    """ Defining a Logistic Regression class with L2 regularization and 
+        Stochastic Gradient Descent
+    
+    The parameters are:
+        l2: lambda value for l2 regularization
+        n_iter: number of iterations over the dataset
+        eta: learning rate
+        batch_size: size of each batch (SGD=1 and full batch = len(X))
+    """
+    
+    def __init__(self, l2=0.0, n_iter=1000, eta=0.05, batch_size=1):
+        self.l2 = l2
+        self.n_iter = n_iter
+        self.eta = eta
+        self.batch_size = batch_size
+            
+    def sigmoid(self, z):
+        # This is the sigmoid function of z
+        return 1/(1+ np.exp(-z))
+    
+    def fit(self, X, y):
+        # fit the training data
+        
+        y = y.reshape(-1,1)
+        # initialize the values of the weights to zero
+        self.theta = np.zeros((X.shape[1],1))
+        m = y.shape[0]
+        pad = 1e-6
+        self.cost_values = []
+        for i in range(self.n_iter):
+            # shuffling each iteration as to prevent overfitting
+            shuffled_values = np.random.permutation(m)
+            X_shuffled = X[shuffled_values]
+            y_shuffled = y[shuffled_values]
+            # iterating over each batch
+            for batch in range(0, m, self.batch_size):
+                x_batch = X_shuffled[batch:batch+self.batch_size]
+                y_batch = y_shuffled[batch:batch+self.batch_size]
+                z = self.sigmoid(np.dot(x_batch, self.theta))
+                # calculating the gradient with the derived formula
+                gradient = x_batch.T.dot(z-y_batch)/m + (self.l2/m*self.theta)
+                self.theta -= self.eta * gradient
+                # implementing the cost (objective) function given
+                cost = np.average(-y_batch*np.log(z+pad) - ((1-y_batch)*np.log(1-z+pad)))
+                l2_cost = cost + (self.l2/(2*m) * np.linalg.norm(self.theta[1:])**2)  # we don't regularize the intersect
+                self.cost_values.append(l2_cost)
+
+        return self
+    
+
+    
+    def predict(self, X, threshold=0.5):
+        # return the predicted values in (0,1) format
+        return np.where(self.sigmoid(X.dot(self.theta)) >= threshold,1,0)
+    
+    def predict_prob(self, X):
+        # return the predicted values in percentage format
+        return self.sigmoid(X.dot(self.theta))
+
+
+
 if __name__ == "__main__":
     main()
