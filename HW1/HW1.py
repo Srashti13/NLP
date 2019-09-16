@@ -8,8 +8,9 @@ import os
 import pandas as pd
 import re
 import numpy as np
+from string import punctuation
 from nltk.stem.porter import PorterStemmer
-from nltk.tokenize import RegexpTokenizer
+from nltk.tokenize import TweetTokenizer
 import itertools
 from sklearn.feature_extraction.text import CountVectorizer
 from collections import defaultdict
@@ -49,14 +50,17 @@ def get_train_vocab():
         :param text:
         :return:
         """
-        txt = re.sub(r'\d+', '', txt) #remove numbers
-        txt = re.sub(r'\d+', '', txt) # do other tokenizing here...
-        tokenizer = RegexpTokenizer(r'\w+') #remove punctuation
-        tokens = tokenizer.tokenize(txt)
+        def lower_repl(match):
+            return match.group(1).lower()
+
+        txt = re.sub('<[^<]+?>', '', txt)# remove html tags
+        txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial 
+        tokens = TweetTokenizer().tokenize(txt) #emoticon stemming 
         if stem:
             stemmer = PorterStemmer()
             stemmed = [stemmer.stem(item) for item in tokens]
             tokens = stemmed
+        
         return tokens
 
     #initalize variables
@@ -98,6 +102,7 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
     document, keeping binary representation that only keeps track of presence (or not) of a word in
     a document.
     '''
+<<<<<<< HEAD
     ##### Bag of Words Frequency Count #####
     ncol = len(vocabulary)
     nrow = len(trainingdocs)
@@ -146,6 +151,28 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
                 trainbow_stem_binary[n, stem_vocab_dict[word]] = 1
             
     return trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary
+=======
+    #gettings frequency based bag of words feature vectors -- currently too slow...
+    train_BOW_freq = pd.DataFrame(0,index=np.arange(25000),columns=vocabulary)
+    print(train_BOW_freq.head())
+    i=0
+    for twt in trainingdocs:
+        i+=1
+        for word in twt:
+            if word in vocabulary:
+                train_BOW_freq.loc[train_BOW_freq.index[i]][word] = train_BOW_freq.loc[train_BOW_freq.index[i]][word] + 1
+                # print(i)
+                # print(word)
+                # print(train_BOW_freq.loc[train_BOW_freq.index[i]][word])
+    # print(train_BOW_freq.head())
+
+    #these will be similar to above...
+    train_BOW_binary = pd.DataFrame()
+    train_BOW_freq_stemmed = pd.DataFrame()
+    train_BOW_binary_stemmed = pd.DataFrame()
+
+    return train_BOW_freq, train_BOW_binary, train_BOW_freq_stemmed, train_BOW_binary_stemmed
+>>>>>>> master
 
 def get_class_priors():
     '''
