@@ -8,8 +8,9 @@ import os
 import pandas as pd
 import re
 import numpy as np
+from string import punctuation
 from nltk.stem.porter import PorterStemmer
-from nltk.tokenize import RegexpTokenizer
+from nltk.tokenize import TweetTokenizer
 import itertools
 from sklearn.feature_extraction.text import CountVectorizer
 
@@ -43,14 +44,17 @@ def get_train_vocab():
         :param text:
         :return:
         """
-        txt = re.sub(r'\d+', '', txt) #remove numbers
-        txt = re.sub(r'\d+', '', txt) # do other tokenizing here...
-        tokenizer = RegexpTokenizer(r'\w+') #remove punctuation
-        tokens = tokenizer.tokenize(txt)
+        def lower_repl(match):
+            return match.group(1).lower()
+
+        txt = re.sub('<[^<]+?>', '', txt)# remove html tags
+        txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial 
+        tokens = TweetTokenizer().tokenize(txt) #emoticon stemming 
         if stem:
             stemmer = PorterStemmer()
             stemmed = [stemmer.stem(item) for item in tokens]
             tokens = stemmed
+        
         return tokens
 
     #initalize variables
@@ -101,10 +105,10 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
         for word in twt:
             if word in vocabulary:
                 train_BOW_freq.loc[train_BOW_freq.index[i]][word] = train_BOW_freq.loc[train_BOW_freq.index[i]][word] + 1
-                print(i)
+                # print(i)
                 # print(word)
                 # print(train_BOW_freq.loc[train_BOW_freq.index[i]][word])
-    print(train_BOW_freq.head())
+    # print(train_BOW_freq.head())
 
     #these will be similar to above...
     train_BOW_binary = pd.DataFrame()
