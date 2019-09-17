@@ -47,8 +47,6 @@ def get_train_vocab():
     def tokenize(txt,stem=False):
         """
         Tokenizer that tokenizes text. Can also stem words.
-        :param text:
-        :return:
         """
         def lower_repl(match):
             return match.group(1).lower()
@@ -80,20 +78,9 @@ def get_train_vocab():
     #raw python to get unique vocabulary words from the mega training documents
     vocabulary = list(set(list(itertools.chain.from_iterable(trainingdocs))))
     vocabulary_stemmed = list(set(list(itertools.chain.from_iterable(trainingdocs_stemmed))))
-    y_train = np.array(list(map(lambda x: 1 if x == 'pos' else 0, y_train)))
+    y_train = np.array(list(map(lambda x: 1 if x == 'pos' else 0, y_train))) #add labels 
 
-
-    #using sklearn to convert mega documents to feature vectors and get vocab  -- is this cheating?
-    # vec = CountVectorizer(tokenizer=lambda x: x,lowercase = False)
-    # count_feature_vector = vec.fit_transform(trainingdocs)
-    # vocabulary = vec.get_feature_names()
-
-    # vec = CountVectorizer(tokenizer=lambda x: x,lowercase = False)
-    # count_feature_vector_stemmed = vec.fit_transform(trainingdocs_stemmed)
-    # vocabulary_stemmed = vec.get_feature_names()
-
-        
-    return vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed
+    return vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train
 
 def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed): 
     '''
@@ -148,7 +135,7 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
         for word in doc:
             if word in stem_vocab_dict:
                 trainbow_stem_binary[n, stem_vocab_dict[word]] = 1
-            
+
     return trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary
 
 def get_class_priors():
