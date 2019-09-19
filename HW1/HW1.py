@@ -20,17 +20,18 @@ def main():
     '''
     main function
     '''
-    vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train = get_train_vocab()
+    vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test = get_trainandtest_vocabanddocs()
     trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary, vocab_dict, stem_vocab_dict = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed)
     P_positive, P_negative  = get_class_priors(y_train)
     wordlikelihood_dicts_list = get_perword_likelihood(trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary,vocab_dict, stem_vocab_dict, y_train)
+    evaluate_NB(wordlikelihood_dicts_list,P_positive, P_negative, testdocs, testdocs_stemmed, y_test)
 
     #LR_model = Logistic_Regression_L2_SGD(n_iter=1, batch_size=len(train_BOW_freq))
     #LR_model.fit(train_BOW_binary, y_train)
     #predictions = LR_model.predict(train_BOW_freq)
     #print("Accuracy: {:.0f}%".format(sum(predictions.flatten() == y_train)/len(y_train)*100))
 
-def get_train_vocab():
+def get_trainandtest_vocabanddocs():
     '''
     Create your Vocabulary: Read the complete training data word by word and create the
     vocabulary V for the corpus. You must not include the test set in this process. Remove any
@@ -62,12 +63,13 @@ def get_train_vocab():
         
         return tokens
 
-    #initalize variables
+    #initalize train variables
     trainingdocs = []
     trainingdocs_stemmed = []
     vocabulary = []
     vocabulary_stemmed = []
     y_train = []
+
     #create megadocument of all training tweets stemmed and not stemmed
     for folder in os.listdir('Data/train'):
         for f in os.listdir(os.path.join('Data/train',folder)):
@@ -80,7 +82,20 @@ def get_train_vocab():
     vocabulary = list(set(list(itertools.chain.from_iterable(trainingdocs))))
     vocabulary_stemmed = list(set(list(itertools.chain.from_iterable(trainingdocs_stemmed))))
     y_train = np.array(list(map(lambda x: 1 if x == 'pos' else 0, y_train))) #add labels 
-    return vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train
+
+    #initalize test variables
+    testdocs = []
+    testdocs_stemmed = []
+    y_test = []
+    #create megadocument of all testing tweets stemmed and not stemmed
+    for folder in os.listdir('Data/test'):
+        for f in os.listdir(os.path.join('Data/test',folder)):
+            tweet = open(os.path.join('Data/test',folder,f),encoding="utf8").read()
+            y_test.append(folder)
+            testdocs.append(tokenize(tweet,False)) #don't stem
+            testdocs_stemmed.append(tokenize(tweet,True))# stem
+
+    return vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test
 
 def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed): 
     '''
@@ -114,7 +129,6 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
             if word in vocab_dict:
                 trainbow_freq[n, vocab_dict[word]] += 1
     
-    
     for n, doc in enumerate(trainingdocs_stemmed):
         for word in doc:
             if word in stem_vocab_dict:
@@ -143,8 +157,6 @@ def get_class_priors(y_train):
     calculate the prior for each class = number of samples of class C in training set / total number of samples in training set (25000)
     Pˆ(c) = Nc/N
     '''
-
-    num_training_tweets = y_train.size
     P_negative = list(y_train).count(0)/y_train.size
     P_positive = list(y_train).count(1)/y_train.size
     return P_negative, P_positive
@@ -168,8 +180,7 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
     denom_neg = trainbow_freq[(1+num_pos):,:].sum()+len(vocab_dict.keys()) #sum of all negative words and vocab size
     trainbow_freq_pos_sum = trainbow_freq[:num_pos,:].sum(axis = 0) #per word summing for positive class
     trainbow_freq_neg_sum = trainbow_freq[(1+num_pos):,:].sum(axis = 0) # per word summing for negative class
-    i=0
-    print('start')
+
     for v in vocab_dict.keys():
 
         frequencydict_pos[v] = trainbow_freq_pos_sum[vocab_dict[v]]+1 /\
@@ -183,8 +194,7 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
     denom_stem_neg = trainbow_stem_freq[(1+num_pos):,:].sum()+len(stem_vocab_dict.keys()) #sum of all negative words and vocab size
     trainbow_freq_stem_pos_sum = trainbow_stem_freq[:num_pos,:].sum(axis = 0) #per word summing for positive class
     trainbow_freq_stem_neg_sum = trainbow_stem_freq[(1+num_pos):,:].sum(axis = 0) # per word summing for negative class
-    i=0
-    print('start')
+
     for v in vocab_dict.keys():
 
         frequencydict_pos_stem[v] = trainbow_freq_stem_pos_sum[stem_vocab_dict[v]]+1 /\
@@ -194,7 +204,7 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
                                         (denom_stem_neg)
 
 
-    # binary ##   P^(xi∣ωj)=dfxi,y+1 / dfy+2 https://sebastianraschka.com/Articles/2014_naive_bayes_1.html
+    # binary ##   P^(xi∣ωj)=dfxi,y+1 / dfy+2 Multi-variate Bernoulli Naive Bayes https://sebastianraschka.com/Articles/2014_naive_bayes_1.html
     binarydict_pos = defaultdict()
     binarydict_neg = defaultdict()
     binarydict_pos_stem = defaultdict()
@@ -205,33 +215,46 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
     trainbow_binary_neg_sum = trainbow_binary[(1+num_pos):,:].sum(axis = 0) # per word summing for negative class
     pos_docs = num_pos #number of positive documents
     neg_docs = list(y_train).count(1) #number of negative documents
-    print('start')
+
     for v in vocab_dict.keys():
             
-            binarydict_pos[v] = trainbow_binary_pos_sum[stem_vocab_dict[v]]+1 /\
-                                        (pos_docs) + 2
+        binarydict_pos[v] = trainbow_binary_pos_sum[stem_vocab_dict[v]]+1 /\
+                                    (pos_docs) + 2
 
-            binarydict_neg[v] = trainbow_binary_neg_sum[stem_vocab_dict[v]]+1 /\
-                            (neg_docs) + 2
+        binarydict_neg[v] = trainbow_binary_neg_sum[stem_vocab_dict[v]]+1 /\
+                        (neg_docs) + 2
 
     ## binary stemmed ##
     trainbow_binary_stem_pos_sum = trainbow_stem_binary[:num_pos,:].sum(axis = 0) #per word summing for positive class
     trainbow_binary_stem_neg_sum = trainbow_stem_binary[(1+num_pos):,:].sum(axis = 0) # per word summing for negative class
-    print('start')
+
     for v in vocab_dict.keys():
             
-            binarydict_pos_stem[v] = trainbow_binary_stem_pos_sum[stem_vocab_dict[v]]+1 /\
-                                        (pos_docs) + 2
+        binarydict_pos_stem[v] = trainbow_binary_stem_pos_sum[stem_vocab_dict[v]]+1 /\
+                                    (pos_docs) + 2
 
-            binarydict_neg_stem[v] = trainbow_binary_stem_neg_sum[stem_vocab_dict[v]]+1 /\
-                            (neg_docs) + 2
-    print('end')
+        binarydict_neg_stem[v] = trainbow_binary_stem_neg_sum[stem_vocab_dict[v]]+1 /\
+                        (neg_docs) + 2
+
 
     wordlikelihood_dicts_list = [frequencydict_pos, frequencydict_neg, \
-                        frequencydict_pos_stem, frequencydict_neg_stem, \
-                        binarydict_pos, binarydict_neg, \
-                        binarydict_pos_stem, binarydict_neg_stem]
+                                frequencydict_pos_stem, frequencydict_neg_stem, \
+                                binarydict_pos, binarydict_neg, \
+                                binarydict_pos_stem, binarydict_neg_stem]
     return wordlikelihood_dicts_list
+
+def evaluate_NB(wordlikelihood_dicts_list,P_positive, P_negative, testdocs, testdocs_stemmed, y_test):
+    '''
+    Compute the most likely class for each document in the test set using each of the
+combinations of stemming + frequency count, stemming + binary, no-stemming + frequency
+count, no-stemming + binary.
+     For each of your classifiers, compute and report accuracy. Accuracy is
+    number of correctly classified reviews/number of all reviews in test (25k for our case). Also
+    create a confusion matrix for each classifier. Save your output in a .txt or .log file.
+    '''
+    return print('')
+
+
 
 class Logistic_Regression_L2_SGD:
     """ Defining a Logistic Regression class with L2 regularization and 
@@ -263,7 +286,7 @@ class Logistic_Regression_L2_SGD:
         m = y.shape[0]
         pad = 1e-6
         self.cost_values = []
-        for i in range(self.n_iter):
+        for _ in range(self.n_iter):
             # shuffling each iteration as to prevent overfitting
             shuffled_values = np.random.permutation(m)
             X_shuffled = X[shuffled_values]
