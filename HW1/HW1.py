@@ -23,7 +23,7 @@ def main():
     vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train = get_train_vocab()
     trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary, vocab_dict, stem_vocab_dict = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed)
     P_positive, P_negative  = get_class_priors(y_train)
-    wordlikelihood_freq, wordlikelihood_freq_stem, wordlikelihood_binary, wordlikelihood_binary_stem = get_perword_likelihood(trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary,vocab_dict, stem_vocab_dict, y_train)
+    wordlikelihood_dicts_list = get_perword_likelihood(trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary,vocab_dict, stem_vocab_dict, y_train)
 
     #LR_model = Logistic_Regression_L2_SGD(n_iter=1, batch_size=len(train_BOW_freq))
     #LR_model.fit(train_BOW_binary, y_train)
@@ -156,13 +156,14 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
 
     depends on vocabulary being stemmed/non-stemmed and the type of vectors being used
     '''
+    ## frequency Pˆ(w | c) = count(w, c)+1 /(count(c)+ |V|) 
     frequencydict_pos = defaultdict()
     frequencydict_neg = defaultdict()
     frequencydict_pos_stem = defaultdict()
     frequencydict_neg_stem = defaultdict()
     num_pos = list(y_train).count(0)
 
-    ## frequency not stemmed ## Pˆ(w | c) = count(w, c)+1 /(count(c)+ |V|)  
+    ## frequency not stemmed ##  
     denom_pos = trainbow_freq[:num_pos,:].sum()+len(vocab_dict.keys()) #sum of all positive words and vocab size
     denom_neg = trainbow_freq[(1+num_pos):,:].sum()+len(vocab_dict.keys()) #sum of all negative words and vocab size
     trainbow_freq_pos_sum = trainbow_freq[:num_pos,:].sum(axis = 0) #per word summing for positive class
@@ -177,11 +178,11 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
         frequencydict_neg[v] = trainbow_freq_neg_sum[vocab_dict[v]]+1 /\
                                         (denom_neg)
 
-    ## frequency stemmed ## Pˆ(w | c) = count(w, c)+1 /(count(c)+ |V|)  
+    ## frequency stemmed ##  
     denom_stem_pos = trainbow_stem_freq[:num_pos,:].sum()+len(stem_vocab_dict.keys()) #sum of all positive words and vocab size
     denom_stem_neg = trainbow_stem_freq[(1+num_pos):,:].sum()+len(stem_vocab_dict.keys()) #sum of all negative words and vocab size
-    trainbow_freq_pos_sum = trainbow_stem_freq[:num_pos,:].sum(axis = 0) #per word summing for positive class
-    trainbow_freq_neg_sum = trainbow_stem_freq[(1+num_pos):,:].sum(axis = 0) # per word summing for negative class
+    trainbow_freq_stem_pos_sum = trainbow_stem_freq[:num_pos,:].sum(axis = 0) #per word summing for positive class
+    trainbow_freq_stem_neg_sum = trainbow_stem_freq[(1+num_pos):,:].sum(axis = 0) # per word summing for negative class
     i=0
     print('start')
     for v in vocab_dict.keys():
@@ -192,8 +193,45 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
         frequencydict_neg_stem[v] = trainbow_freq_stem_neg_sum[stem_vocab_dict[v]]+1 /\
                                         (denom_stem_neg)
 
+
+    # binary ##   P^(xi∣ωj)=dfxi,y+1 / dfy+2 https://sebastianraschka.com/Articles/2014_naive_bayes_1.html
+    binarydict_pos = defaultdict()
+    binarydict_neg = defaultdict()
+    binarydict_pos_stem = defaultdict()
+    binarydict_neg_stem = defaultdict()
+
+    ## binary not stemmed ## 
+    trainbow_binary_pos_sum = trainbow_binary[:num_pos,:].sum(axis = 0) #per word summing for positive class
+    trainbow_binary_neg_sum = trainbow_binary[(1+num_pos):,:].sum(axis = 0) # per word summing for negative class
+    pos_docs = num_pos #number of positive documents
+    neg_docs = list(y_train).count(1) #number of negative documents
+    print('start')
+    for v in vocab_dict.keys():
+            
+            binarydict_pos[v] = trainbow_binary_pos_sum[stem_vocab_dict[v]]+1 /\
+                                        (pos_docs) + 2
+
+            binarydict_neg[v] = trainbow_binary_neg_sum[stem_vocab_dict[v]]+1 /\
+                            (neg_docs) + 2
+
+    ## binary stemmed ##
+    trainbow_binary_stem_pos_sum = trainbow_stem_binary[:num_pos,:].sum(axis = 0) #per word summing for positive class
+    trainbow_binary_stem_neg_sum = trainbow_stem_binary[(1+num_pos):,:].sum(axis = 0) # per word summing for negative class
+    print('start')
+    for v in vocab_dict.keys():
+            
+            binarydict_pos_stem[v] = trainbow_binary_stem_pos_sum[stem_vocab_dict[v]]+1 /\
+                                        (pos_docs) + 2
+
+            binarydict_neg_stem[v] = trainbow_binary_stem_neg_sum[stem_vocab_dict[v]]+1 /\
+                            (neg_docs) + 2
     print('end')
-    return wordlikelihood
+
+    wordlikelihood_dicts_list = [frequencydict_pos, frequencydict_neg, \
+                        frequencydict_pos_stem, frequencydict_neg_stem, \
+                        binarydict_pos, binarydict_neg, \
+                        binarydict_pos_stem, binarydict_neg_stem]
+    return wordlikelihood_dicts_list
 
 class Logistic_Regression_L2_SGD:
     """ Defining a Logistic Regression class with L2 regularization and 
