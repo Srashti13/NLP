@@ -9,6 +9,7 @@ import pandas as pd
 import re
 import time
 import numpy as np
+import itertools
 from nltk.stem.porter import PorterStemmer
 from nltk import word_tokenize
 from collections import defaultdict
@@ -27,17 +28,17 @@ def main():
     '''
     print("Start Program --- %s seconds ---" % (time.time() - start_time))
     vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test = get_trainandtest_vocabanddocs()
-    trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary, vocab_dict, stem_vocab_dict = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed)
+    train_vecs, vocab_dict, stem_vocab_dict, test_vecs = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, testdocs, testdocs_stemmed)
     P_positive, P_negative  = get_class_priors(y_train)
-    wordlikelihood_dict = get_perword_likelihood(trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary,vocab_dict, stem_vocab_dict, y_train)
+    wordlikelihood_dict = get_perword_likelihood(train_vecs[0], train_vecs[1], train_vecs[2], train_vecs[3],vocab_dict, stem_vocab_dict, y_train)
     predictions = predict_NB(wordlikelihood_dict,P_positive, P_negative, testdocs, testdocs_stemmed, y_test)
     evaluate(predictions[0], y_test, "NB-NOSTEM-FREQ")
     evaluate(predictions[1], y_test, "NB-NOSTEM-BINARY")
     evaluate(predictions[2], y_test, "NB-STEM-FREQ")
     evaluate(predictions[3], y_test, "NB-STEM-BINARY")
-    LR_model = Logistic_Regression_L2_SGD(n_iter=10,eta=0.05, batch_size=len(trainbow_freq))
-    LR_model.fit(trainbow_freq, y_train)
-    predictions = LR_model.predict(trainbow_freq)
+    LR_model = Logistic_Regression_L2_SGD(n_iter=10,eta=0.05, batch_size=len(train_vecs[0]))
+    LR_model.fit(train_vecs[0], y_train)
+    predictions = LR_model.predict(test_vecs[0])
     evaluate(predictions, y_test, "LOGISTIC_FREQ_NOL2")
 
 
@@ -119,7 +120,7 @@ def get_trainandtest_vocabanddocs():
     print("Test Docs Prepared --- %s seconds ---" % (time.time() - start_time))
     return vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test
 
-def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed): 
+def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, testdocs, testdocs_stemmed): 
     '''
     Extract Features: Convert documents to vectors using Bag of Words (BoW) representation. Do
     this in two ways: keeping frequency count where each word is represented by its count in each
@@ -130,10 +131,12 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
     ncol = len(vocabulary)
     nrow = len(trainingdocs)
     trainbow_freq = np.zeros((nrow,ncol), dtype=np.int8)
+    testbow_freq = np.zeros((nrow,ncol), dtype=np.int8)
 
     ncol_stem = len(vocabulary_stemmed)
     nrow_stem = len(trainingdocs_stemmed)
     trainbow_stem_freq = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
+    testbow_stem_freq = np.zeros((nrow,ncol), dtype=np.int8)
     
     # creating a dictionary where the key is the distinct vocab word and the
     # value is the index that will be used in the matrix
@@ -146,34 +149,58 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed):
         stem_vocab_dict[v] = k
         
     # mapping the word counts to the matrix
-    for n, doc in enumerate(trainingdocs):
+    for n, doc in enumerate(trainingdocs): #train freq
         for word in doc:
             if word in vocab_dict:
                 trainbow_freq[n, vocab_dict[word]] += 1
     
-    for n, doc in enumerate(trainingdocs_stemmed):
+    for n, doc in enumerate(trainingdocs_stemmed): #train freq stemmed
         for word in doc:
             if word in stem_vocab_dict:
                 trainbow_stem_freq[n, stem_vocab_dict[word]] += 1
-    
 
+    for n, doc in enumerate(testdocs): #test freq
+        for word in doc:
+            if word in stem_vocab_dict:
+                testbow_freq[n, stem_vocab_dict[word]] += 1
+
+    for n, doc in enumerate(testdocs_stemmed): #test freq stemmed
+        for word in doc:
+            if word in stem_vocab_dict:
+                testbow_stem_freq[n, stem_vocab_dict[word]] += 1
+    
     ##### Bag of Words Binary Count #####
     trainbow_binary = np.zeros((nrow,ncol), dtype=np.int8)
     trainbow_stem_binary = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
+
+    testbow_binary = np.zeros((nrow,ncol), dtype=np.int8)
+    testbow_stem_binary = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
     
     # mapping the word counts to the matrix
-    for n, doc in enumerate(trainingdocs):
+    for n, doc in enumerate(trainingdocs): #train binary 
         for word in doc:
             if word in vocab_dict:
                 trainbow_binary[n, vocab_dict[word]] = 1
                                 
-    for n, doc in enumerate(trainingdocs_stemmed):
+    for n, doc in enumerate(trainingdocs_stemmed): #train binary stemmed
         for word in doc:
             if word in stem_vocab_dict:
                 trainbow_stem_binary[n, stem_vocab_dict[word]] = 1
 
+    for n, doc in enumerate(testdocs): #test binary 
+        for word in doc:
+            if word in vocab_dict:
+                testbow_binary[n, vocab_dict[word]] = 1
+                                
+    for n, doc in enumerate(testdocs_stemmed): #test binary stemmed
+        for word in doc:
+            if word in stem_vocab_dict:
+                testbow_stem_binary[n, stem_vocab_dict[word]] = 1
+
+    train_vecs = [trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary]
+    test_vecs = [testbow_freq, testbow_stem_freq, testbow_binary, testbow_stem_binary]
     print("Vectors Created --- %s seconds ---" % (time.time() - start_time))    
-    return trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary, vocab_dict, stem_vocab_dict
+    return train_vecs, vocab_dict, stem_vocab_dict, test_vecs 
 
 def get_class_priors(y_train):
     '''
