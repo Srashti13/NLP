@@ -35,18 +35,18 @@ def main():
     main function
     '''
     print("Start Program --- %s seconds ---" % (time.time() - start_time))
-    # get_trainandtest_vocabanddocs()
-    # get_Vectors()
-    # P_positive, P_negative  = get_class_priors()
-    # # get_perword_likelihood()
-    # predictions = predict_NB(P_positive, P_negative)
+    get_trainandtest_vocabanddocs()
+    get_Vectors()
+    P_positive, P_negative  = get_class_priors()
+    get_perword_likelihood()
+    predictions = predict_NB(P_positive, P_negative)
     y_test = np.load('Stored/DocsVocab/y_test.npy')
-    # evaluate(predictions[0], y_test, "NB-NOSTEM-FREQ")
-    # evaluate(predictions[1], y_test, "NB-NOSTEM-BINARY")
-    # evaluate(predictions[2], y_test, "NB-NOSTEM-TFIDF")
-    # evaluate(predictions[3], y_test, "NB-STEM-FREQ")
-    # evaluate(predictions[4], y_test, "NB-STEM-BINARY")
-    # evaluate(predictions[5], y_test, "NB-STEM-TFIDF")
+    evaluate(predictions[0], y_test, "NB-NOSTEM-FREQ")
+    evaluate(predictions[1], y_test, "NB-NOSTEM-BINARY")
+    evaluate(predictions[2], y_test, "NB-NOSTEM-TFIDF")
+    evaluate(predictions[3], y_test, "NB-STEM-FREQ")
+    evaluate(predictions[4], y_test, "NB-STEM-BINARY")
+    evaluate(predictions[5], y_test, "NB-STEM-TFIDF")
     
     #nostem no l2
     LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=1, batch_size=10000)
@@ -137,8 +137,8 @@ def get_trainandtest_vocabanddocs():
         """
         # from nltk.corpus import stopwords
         # stopwords = set(stopwords.words('english')) 
-        txt = txt.translate(str.maketrans('', '', string.punctuation))
-        txt = re.sub(r'\d+', '', txt)
+        # txt = txt.translate(str.maketrans('', '', string.punctuation))
+        txt = re.sub(r'\d+', '', txt) #remove numbers
         def lower_repl(match):
             return match.group(1).lower()
 
@@ -153,6 +153,7 @@ def get_trainandtest_vocabanddocs():
                 tokensfinal = tokensfinal + to_add
             else:
                 tokensfinal.append(i)
+        tokens= tokensfinal
         # tokens = [w for w in tokensfinal if w not in stopwords]
         if stem:
             stemmer = PorterStemmer()

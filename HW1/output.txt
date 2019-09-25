@@ -1,0 +1,112 @@
+Start Program --- 0.0 seconds ---
+Train Docs Prepared --- 204.43827891349792 seconds ---
+Test Docs Prepared --- 401.1904094219208 seconds ---
+vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test
+Vectors Created --- 731.3943386077881 seconds ---
+train_vecs, vocab_dict, stem_vocab_dict, test_vecs
+Priors Assessed --- 731.9852800369263 seconds ---
+Word Likelihoods Calculated --- 775.9447176456451 seconds ---
+wordlikelihood_dict
+NB Predictions Acquired --- 879.3727421760559 seconds ---
+Evaulating  NB-NOSTEM-FREQ --- 879.6625196933746 seconds ---
+80.8
+       neg   pos
+neg  10897  3197
+pos   1603  9303
+Evaulating  NB-NOSTEM-BINARY --- 879.6948204040527 seconds ---
+81.6
+       neg   pos
+neg  11044  3144
+pos   1456  9356
+Evaulating  NB-NOSTEM-TFIDF --- 879.7217481136322 seconds ---
+71.26
+       neg   pos
+neg  12013  6698
+pos    487  5802
+Evaulating  NB-STEM-FREQ --- 879.7486763000488 seconds ---
+80.272
+       neg   pos
+neg  10864  3296
+pos   1636  9204
+Evaulating  NB-STEM-BINARY --- 879.7756042480469 seconds ---
+80.86
+       neg   pos
+neg  11054  3339
+pos   1446  9161
+Evaulating  NB-STEM-TFIDF --- 879.8015465736389 seconds ---
+68.968
+       neg   pos
+neg  12082  7340
+pos    418  5160
+Fitting Logistic Regression, eta = 1, 5 iterations, L2 = 0.0 --- 881.1344192028046 seconds ---
+Evaulating  LOGISTIC_FREQ_NOL2 --- 1052.3824620246887 seconds ---
+56.432
+       neg    pos
+neg  11947  10339
+pos    553   2161
+Fitting Logistic Regression, eta = 1, 5 iterations, L2 = 0.0 --- 1053.7499015331268 seconds ---
+Evaulating  LOGISTIC_BINARY_NOL2 --- 1232.3084671497345 seconds ---
+71.952
+       neg   pos
+neg  11759  6271
+pos    741  6229
+Fitting Logistic Regression, eta = 1, 5 iterations, L2 = 0.0 --- 1233.6877055168152 seconds ---
+Evaulating  LOGISTIC_TFIDF_NOL2 --- 1404.7982392311096 seconds ---
+87.848
+       neg    pos
+neg  11048   1586
+pos   1452  10914
+Fitting Logistic Regression, eta = 1, 5 iterations, L2 = 0.0 --- 1405.9702851772308 seconds ---
+Evaulating  LOGISTIC_FREQ_STEM_NOL2 --- 1542.1502816677094 seconds ---
+54.96
+       neg    pos
+neg  12174  10934
+pos    326   1566
+Fitting Logistic Regression, eta = 1, 5 iterations, L2 = 0.0 --- 1543.2503349781036 seconds ---
+Evaulating  LOGISTIC_BINARY_STEM_NOL2 --- 1674.808201789856 seconds ---
+68.032
+       neg   pos
+neg  12085  7577
+pos    415  4923
+Fitting Logistic Regression, eta = 1, 5 iterations, L2 = 0.0 --- 1682.7098941802979 seconds ---
+Evaulating  LOGISTIC_TFIDF_STEM_NOL2 --- 1820.3426642417908 seconds ---
+87.256
+       neg    pos
+neg  11015   1701
+pos   1485  10799
+Fitting Logistic Regression, eta = 0.1, 5 iterations, L2 = 5 --- 1823.2880158424377 seconds ---
+Evaulating  LOGISTIC_FREQ_L2 --- 1990.6832921504974 seconds ---
+54.832
+       neg    pos
+neg   1870    662
+pos  10630  11838
+Fitting Logistic Regression, eta = 0.1, 5 iterations, L2 = 5 --- 2001.431274652481 seconds ---
+Evaulating  LOGISTIC_BINARY_L2 --- 2172.8264276981354 seconds ---
+74.864
+       neg   pos
+neg  11038  4822
+pos   1462  7678
+Fitting Logistic Regression, eta = 0.1, 5 iterations, L2 = 5 --- 2182.823474407196 seconds ---
+Evaulating  LOGISTIC_TFIDF_L2 --- 2356.3819999694824 seconds ---
+83.996
+       neg    pos
+neg  10811   2312
+pos   1689  10188
+Fitting Logistic Regression, eta = 0.1, 5 iterations, L2 = 5 --- 2364.4034657478333 seconds ---
+Evaulating  LOGISTIC_FREQ_STEM_L2 --- 2492.3879742622375 seconds ---
+51.236
+       neg    pos
+neg    400     91
+pos  12100  12409
+Fitting Logistic Regression, eta = 0.1, 5 iterations, L2 = 5 --- 2500.539299726486 seconds ---
+Evaulating  LOGISTIC_BINARY_STEM_L2 --- 2628.6138129234314 seconds ---
+76.92
+       neg   pos
+neg  11102  4372
+pos   1398  8128
+Fitting Logistic Regression, eta = 0.1, 5 iterations, L2 = 5 --- 2629.6837060451508 seconds ---
+Evaulating  LOGISTIC_TFIDF_STEM_L2 --- 2757.995837211609 seconds ---
+83.712
+       neg    pos
+neg  10653   2225
+pos   1847  10275
