@@ -14,31 +14,42 @@ from nltk.stem.porter import PorterStemmer
 from nltk import word_tokenize
 from collections import defaultdict
 from sklearn.metrics import confusion_matrix
-
+import string
+import pickle
 
 #emoji regex
 start_time = time.time()
 emoticon_string = r"(:\)|:-\)|:\(|:-\(|;\);-\)|:-O|8-|:P|:D|:\||:S|:\$|:@|8o\||\+o\(|\(H\)|\(C\)|\(\?\))"
 #https://www.regexpal.com/96995
 
+def save_obj(name, obj ):
+    with open( name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def load_obj(name ):
+    with open( name + '.pkl', 'rb') as f:
+        return pickle.load(f)
 
 def main():
     '''
     main function
     '''
     print("Start Program --- %s seconds ---" % (time.time() - start_time))
-    vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test = get_trainandtest_vocabanddocs()
-    train_vecs, vocab_dict, stem_vocab_dict, test_vecs = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, testdocs, testdocs_stemmed)
-    P_positive, P_negative  = get_class_priors(y_train)
-    wordlikelihood_dict = get_perword_likelihood(train_vecs[0], train_vecs[1], train_vecs[2], train_vecs[3],vocab_dict, stem_vocab_dict, y_train)
-    predictions = predict_NB(wordlikelihood_dict,P_positive, P_negative, testdocs, testdocs_stemmed, y_test)
+    # get_trainandtest_vocabanddocs()
+    # get_BOW()
+    P_positive, P_negative  = get_class_priors()
+    get_perword_likelihood()
+    predictions = predict_NB(P_positive, P_negative)
+    y_test = np.load('Stored/DocsVocab/y_test.npy')
     evaluate(predictions[0], y_test, "NB-NOSTEM-FREQ")
     evaluate(predictions[1], y_test, "NB-NOSTEM-BINARY")
-    evaluate(predictions[2], y_test, "NB-STEM-FREQ")
-    evaluate(predictions[3], y_test, "NB-STEM-BINARY")
-    LR_model = Logistic_Regression_L2_SGD(n_iter=10,eta=0.05, batch_size=len(train_vecs[0]))
-    LR_model.fit(train_vecs[0], y_train)
-    predictions = LR_model.predict(test_vecs[0])
+    evaluate(predictions[2], y_test, "NB-NOSTEM-TFIDF")
+    evaluate(predictions[3], y_test, "NB-STEM-FREQ")
+    evaluate(predictions[4], y_test, "NB-STEM-BINARY")
+    evaluate(predictions[5], y_test, "NB-STEM-TFIDF")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=25,eta=0.1, batch_size=len(np.load('Stored/Vectors/trainbow_freq.npy')))
+    LR_model.fit(np.load('Stored/Vectors/trainbow_freq.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    predictions = LR_model.predict(np.load('Stored/Vectors/testbow_freq.npy'))
     evaluate(predictions, y_test, "LOGISTIC_FREQ_NOL2")
 
 
@@ -61,12 +72,16 @@ def get_trainandtest_vocabanddocs():
         """
         Tokenizer that tokenizes text. Can also stem words.
         """
+        from nltk.corpus import stopwords
+        stopwords = set(stopwords.words('english')) 
+        txt = txt.translate(str.maketrans('', '', string.punctuation))
+        txt = re.sub(r'\d+', '', txt)
         def lower_repl(match):
             return match.group(1).lower()
 
         # txt = r"This is a practice tweet :). Let's hope our-system can get it right. \U0001F923 something."
         txt = re.sub('(?:<[^>]+>)', '', txt)# remove html tags
-        txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial 
+        txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial
         tokens = re.split(emoticon_string,txt) #split based on emoji faces first 
         tokensfinal = []
         for i in tokens:
@@ -75,13 +90,12 @@ def get_trainandtest_vocabanddocs():
                 tokensfinal = tokensfinal + to_add
             else:
                 tokensfinal.append(i)
-        tokens = tokensfinal
+        tokens = [w for w in tokensfinal if w not in stopwords]
         if stem:
             stemmer = PorterStemmer()
             stemmed = [stemmer.stem(item) for item in tokens]
             tokens = stemmed
         return tokens
-
 
     #initalize train variables
     trainingdocs = []
@@ -102,8 +116,13 @@ def get_trainandtest_vocabanddocs():
     vocabulary = list(set(list(itertools.chain.from_iterable(trainingdocs))))
     vocabulary_stemmed = list(set(list(itertools.chain.from_iterable(trainingdocs_stemmed))))
     y_train = np.array(list(map(lambda x: 1 if x == 'pos' else 0, y_train))) #add labels 
-
+    np.save('Stored/DocsVocab/trainingdocs',trainingdocs)
+    np.save('Stored/DocsVocab/trainingdocs_stemmed',trainingdocs_stemmed)
+    np.save('Stored/DocsVocab/vocabulary',vocabulary)
+    np.save('Stored/DocsVocab/vocabulary_stemmed',vocabulary_stemmed)
+    np.save('Stored/DocsVocab/y_train',y_train)
     print("Train Docs Prepared --- %s seconds ---" % (time.time() - start_time))
+
     #initalize test variables
     testdocs = []
     testdocs_stemmed = []
@@ -116,28 +135,32 @@ def get_trainandtest_vocabanddocs():
             testdocs.append(tokenize(tweet,False)) #don't stem
             testdocs_stemmed.append(tokenize(tweet,True))# stem
     y_test = np.array(list(map(lambda x: 1 if x == 'pos' else 0, y_test))) #add labels
-
+    np.save('Stored/DocsVocab/testdocs',testdocs)
+    np.save('Stored/DocsVocab/testdocs_stemmed',testdocs_stemmed)
+    np.save('Stored/DocsVocab/y_test',y_test)
     print("Test Docs Prepared --- %s seconds ---" % (time.time() - start_time))
-    return vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test
+    return print('vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test')
 
-def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, testdocs, testdocs_stemmed): 
+def get_BOW(): 
     '''
     Extract Features: Convert documents to vectors using Bag of Words (BoW) representation. Do
     this in two ways: keeping frequency count where each word is represented by its count in each
     document, keeping binary representation that only keeps track of presence (or not) of a word in
     a document.
     '''
+    trainingdocs = np.load('Stored/DocsVocab/trainingdocs.npy')
+    trainingdocs_stemmed = np.load('Stored/DocsVocab/trainingdocs_stemmed.npy')
+    vocabulary = np.load('Stored/DocsVocab/vocabulary.npy')
+    vocabulary_stemmed = np.load('Stored/DocsVocab/vocabulary_stemmed.npy')
+    testdocs = np.load('Stored/DocsVocab/testdocs.npy')
+    testdocs_stemmed = np.load('Stored/DocsVocab/testdocs_stemmed.npy')
+
     ##### Bag of Words Frequency Count #####
     ncol = len(vocabulary)
     nrow = len(trainingdocs)
-    trainbow_freq = np.zeros((nrow,ncol), dtype=np.int8)
-    testbow_freq = np.zeros((nrow,ncol), dtype=np.int8)
-
     ncol_stem = len(vocabulary_stemmed)
     nrow_stem = len(trainingdocs_stemmed)
-    trainbow_stem_freq = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
-    testbow_stem_freq = np.zeros((nrow,ncol), dtype=np.int8)
-    
+
     # creating a dictionary where the key is the distinct vocab word and the
     # value is the index that will be used in the matrix
     vocab_dict = defaultdict(int)
@@ -147,78 +170,155 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, 
     stem_vocab_dict = defaultdict(int)
     for k, v in enumerate(vocabulary_stemmed):
         stem_vocab_dict[v] = k
-        
+
+    save_obj('Stored/DocsVocab/vocab_dict',vocab_dict)
+    save_obj('Stored/DocsVocab/stem_vocab_dict',stem_vocab_dict)
     # mapping the word counts to the matrix
-    for n, doc in enumerate(trainingdocs): #train freq
+    #train freq       
+    trainbow_freq = np.zeros((nrow,ncol), dtype=np.int8)
+    for n, doc in enumerate(trainingdocs): 
         for word in doc:
             if word in vocab_dict:
                 trainbow_freq[n, vocab_dict[word]] += 1
-    
-    for n, doc in enumerate(trainingdocs_stemmed): #train freq stemmed
+    np.save('Stored/Vectors/trainbow_freq',trainbow_freq)
+    del trainbow_freq
+
+    #train freq stemmed
+    trainbow_stem_freq = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
+    for n, doc in enumerate(trainingdocs_stemmed): 
         for word in doc:
             if word in stem_vocab_dict:
                 trainbow_stem_freq[n, stem_vocab_dict[word]] += 1
+    np.save('Stored/Vectors/trainbow_stem_freq',trainbow_stem_freq)
+    del trainbow_stem_freq
 
-    for n, doc in enumerate(testdocs): #test freq
+    #test freq
+    testbow_freq = np.zeros((nrow,ncol), dtype=np.int8)
+    for n, doc in enumerate(testdocs): 
         for word in doc:
-            if word in stem_vocab_dict:
-                testbow_freq[n, stem_vocab_dict[word]] += 1
+            if word in vocab_dict:
+                testbow_freq[n, vocab_dict[word]] += 1
+    np.save('Stored/Vectors/testbow_freq',testbow_freq)
+    del testbow_freq
 
-    for n, doc in enumerate(testdocs_stemmed): #test freq stemmed
+    #test freq stemmed
+    testbow_stem_freq = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
+    for n, doc in enumerate(testdocs_stemmed): 
         for word in doc:
             if word in stem_vocab_dict:
                 testbow_stem_freq[n, stem_vocab_dict[word]] += 1
-    
-    ##### Bag of Words Binary Count #####
-    trainbow_binary = np.zeros((nrow,ncol), dtype=np.int8)
-    trainbow_stem_binary = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
+    np.save('Stored/Vectors/testbow_stem_freq',testbow_stem_freq)
+    del testbow_stem_freq
 
-    testbow_binary = np.zeros((nrow,ncol), dtype=np.int8)
-    testbow_stem_binary = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
-    
+    ##### Bag of Words Binary Count #####
     # mapping the word counts to the matrix
-    for n, doc in enumerate(trainingdocs): #train binary 
+    #train binary 
+    trainbow_binary = np.zeros((nrow,ncol), dtype=np.int8)
+    for n, doc in enumerate(trainingdocs): 
         for word in doc:
             if word in vocab_dict:
                 trainbow_binary[n, vocab_dict[word]] = 1
-                                
-    for n, doc in enumerate(trainingdocs_stemmed): #train binary stemmed
+    np.save('Stored/Vectors/trainbow_binary',trainbow_binary)
+    del trainbow_binary 
+
+    #train binary stemmed
+    trainbow_stem_binary = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)                       
+    for n, doc in enumerate(trainingdocs_stemmed): 
         for word in doc:
             if word in stem_vocab_dict:
                 trainbow_stem_binary[n, stem_vocab_dict[word]] = 1
+    np.save('Stored/Vectors/trainbow_stem_binary',trainbow_stem_binary)
+    del trainbow_stem_binary 
 
-    for n, doc in enumerate(testdocs): #test binary 
+    #test binary 
+    testbow_binary = np.zeros((nrow,ncol), dtype=np.int8)
+    for n, doc in enumerate(testdocs): 
         for word in doc:
             if word in vocab_dict:
                 testbow_binary[n, vocab_dict[word]] = 1
-                                
-    for n, doc in enumerate(testdocs_stemmed): #test binary stemmed
+    np.save('Stored/Vectors/testbow_binary',testbow_binary)
+    del testbow_binary  
+
+    #test binary stemmed
+    testbow_stem_binary = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)                        
+    for n, doc in enumerate(testdocs_stemmed): 
         for word in doc:
             if word in stem_vocab_dict:
                 testbow_stem_binary[n, stem_vocab_dict[word]] = 1
+    np.save('Stored/Vectors/testbow_stem_binary',testbow_stem_binary)
+    del testbow_stem_binary 
 
-    train_vecs = [trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary]
-    test_vecs = [testbow_freq, testbow_stem_freq, testbow_binary, testbow_stem_binary]
+    ## TFIDF ##
+    # get train idf
+    trainbow_freq = np.load('Stored/Vectors/trainbow_freq.npy')
+    vector = np.int32(np.count_nonzero(trainbow_freq, axis = 0))
+    idf = np.int16(np.log(len(trainbow_freq)//vector))
+    del vector
+    train_tfidf = np.int8(np.multiply(trainbow_freq, idf))
+    del idf
+    np.save('Stored/Vectors/train_tfidf',train_tfidf)
+    del train_tfidf
+    trainbow_stem_freq = np.load('Stored/Vectors/trainbow_stem_freq.npy')
+    vector = np.int32(np.count_nonzero(trainbow_stem_freq, axis = 0))
+    idf_stem = np.int16(np.log(np.true_divide(len(trainbow_stem_freq),vector)))
+    del vector
+    train_tfidf_stem = np.int8(np.multiply(trainbow_stem_freq,idf_stem))
+    del idf_stem
+    np.save('Stored/Vectors/train_tfidf_stem',train_tfidf_stem)
+    del train_tfidf_stem
+    del trainbow_freq
+    del trainbow_stem_freq
+
+    # get test idf
+    testbow_freq = np.load('Stored/Vectors/testbow_freq.npy')
+    vector = np.int32(np.count_nonzero(testbow_freq, axis = 0))
+    idf = np.int16(np.log(len(testbow_freq)//vector))
+    del vector
+    test_tfidf = np.int8(np.multiply(testbow_freq, idf))
+    del idf
+    np.save('Stored/Vectors/test_tfidf',test_tfidf)
+    del test_tfidf
+    testbow_stem_freq = np.load('Stored/Vectors/testbow_stem_freq.npy')
+    vector = np.int32(np.count_nonzero(testbow_stem_freq, axis = 0))
+    idf_stem = np.int16(np.log(np.true_divide(len(testbow_stem_freq),vector)))
+    del vector
+    test_tfidf_stem = np.int8(np.multiply(testbow_stem_freq,idf_stem))
+    del idf_stem
+    np.save('Stored/Vectors/test_tfidf_stem',test_tfidf_stem)
+    del test_tfidf_stem
+    del testbow_freq
+    del testbow_stem_freq
+
+    #output vectors
+    # train_vecs = [trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary, train_tfidf, train_tfidf_stem]
+    # test_vecs = [testbow_freq, testbow_stem_freq, testbow_binary, testbow_stem_binary, test_tfidf, test_tfidf_stem]
+
     print("Vectors Created --- %s seconds ---" % (time.time() - start_time))    
-    return train_vecs, vocab_dict, stem_vocab_dict, test_vecs 
+    return print('train_vecs, vocab_dict, stem_vocab_dict, test_vecs') 
 
-def get_class_priors(y_train):
+def get_class_priors():
     '''
     calculate the prior for each class = number of samples of class C in training set / total number of samples in training set (25000)
     Pˆ(c) = Nc/N
     '''
+    y_train = np.load('Stored/DocsVocab/y_train.npy')
     P_negative = list(y_train).count(0)/y_train.size
     P_positive = list(y_train).count(1)/y_train.size
 
     print("Priors Assessed --- %s seconds ---" % (time.time() - start_time))
-    return P_negative, P_positive
+    return P_positive,P_negative
 
-def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary,vocab_dict, stem_vocab_dict, y_train):
+def get_perword_likelihood():
     '''
     Pˆ(w | c) = count(w, c)+1 /(count(c)+ |V|)  
 
     depends on vocabulary being stemmed/non-stemmed and the type of vectors being used
     '''
+    trainbow_freq = np.load('Stored/Vectors/trainbow_freq.npy')
+    y_train = np.load('Stored/DocsVocab/y_train.npy')
+    vocab_dict = load_obj('Stored/DocsVocab/vocab_dict')
+    stem_vocab_dict = load_obj('Stored/DocsVocab/stem_vocab_dict')
+
     ## frequency Pˆ(w | c) = count(w, c)+1 /(count(c)+ |V|) 
     frequencydict_pos = defaultdict()
     frequencydict_neg = defaultdict()
@@ -237,7 +337,14 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
         frequencydict_pos[v] = (trainbow_freq_pos_sum[vocab_dict[v]]+1) /(denom_pos)
         frequencydict_neg[v] = (trainbow_freq_neg_sum[vocab_dict[v]]+1) /(denom_neg)
 
-    ## frequency stemmed ##  
+    save_obj('Stored/Likelihoods/frequencydict_pos',frequencydict_pos)
+    save_obj('Stored/Likelihoods/frequencydict_neg',frequencydict_neg)
+    del frequencydict_pos
+    del frequencydict_neg
+    del trainbow_freq
+
+    ## frequency stemmed ## 
+    trainbow_stem_freq = np.load('Stored/Vectors/trainbow_stem_freq.npy') 
     denom_stem_pos = trainbow_stem_freq[(1+num_pos):,:].sum()+len(stem_vocab_dict.keys()) #sum of all positive words and vocab size
     denom_stem_neg = trainbow_stem_freq[:num_pos,:].sum()+len(stem_vocab_dict.keys()) #sum of all negative words and vocab size
     trainbow_freq_stem_pos_sum = trainbow_stem_freq[(1+num_pos):,:].sum(axis = 0) #per word summing for positive class
@@ -247,8 +354,14 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
 
         frequencydict_pos_stem[v] = (trainbow_freq_stem_pos_sum[stem_vocab_dict[v]]+1) /(denom_stem_pos)
         frequencydict_neg_stem[v] = (trainbow_freq_stem_neg_sum[stem_vocab_dict[v]]+1) /(denom_stem_neg)
-
+    
+    save_obj('Stored/Likelihoods/frequencydict_pos_stem',frequencydict_pos_stem)
+    save_obj('Stored/Likelihoods/frequencydict_neg_stem',frequencydict_neg_stem)
+    del frequencydict_pos_stem
+    del frequencydict_neg_stem
+    del trainbow_stem_freq
     # binary ##   P^(xi∣ωj)=dfxi,y+1 / dfy+2 Multi-variate Bernoulli Naive Bayes https://sebastianraschka.com/Articles/2014_naive_bayes_1.html
+    trainbow_binary = np.load('Stored/Vectors/trainbow_binary.npy')
     binarydict_pos = defaultdict()
     binarydict_neg = defaultdict()
     binarydict_pos_stem = defaultdict()
@@ -258,14 +371,20 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
     trainbow_binary_pos_sum = trainbow_binary[(1+num_pos):,:].sum(axis = 0) #per word summing for positive class
     trainbow_binary_neg_sum = trainbow_binary[:num_pos,:].sum(axis = 0) # per word summing for negative class
     pos_docs = num_pos #number of positive documents
-    neg_docs = list(y_train).count(1) #number of negative documents
+    neg_docs = list(y_train).count(0) #number of negative documents
     
     for v in vocab_dict.keys():
             
         binarydict_pos[v] = (trainbow_binary_pos_sum[vocab_dict[v]]+1) /((pos_docs) + 2)
         binarydict_neg[v] = (trainbow_binary_neg_sum[vocab_dict[v]]+1) /((neg_docs) + 2)
 
+    save_obj('Stored/Likelihoods/binarydict_pos', binarydict_pos)
+    save_obj('Stored/Likelihoods/binarydict_neg', binarydict_neg)
+    del binarydict_pos
+    del binarydict_neg
+    del trainbow_binary
     ## binary stemmed ##
+    trainbow_stem_binary = np.load('Stored/Vectors/trainbow_stem_binary.npy')
     trainbow_binary_stem_pos_sum = trainbow_stem_binary[(1+num_pos):,:].sum(axis = 0) #per word summing for positive class
     trainbow_binary_stem_neg_sum = trainbow_stem_binary[:num_pos,:].sum(axis = 0) # per word summing for negative class
 
@@ -274,39 +393,105 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
         binarydict_pos_stem[v] = (trainbow_binary_stem_pos_sum[stem_vocab_dict[v]]+1) /((pos_docs) + 2)
         binarydict_neg_stem[v] = (trainbow_binary_stem_neg_sum[stem_vocab_dict[v]]+1) /((neg_docs) + 2)
 
-    wordlikelihood_dict = {"frequencydict_pos":frequencydict_pos, "frequencydict_neg":frequencydict_neg, \
-                                "frequencydict_pos_stem":frequencydict_pos_stem, "frequencydict_neg_stem":frequencydict_neg_stem, \
-                                "binarydict_pos":binarydict_pos, "binarydict_neg":binarydict_neg, \
-                                "binarydict_pos_stem":binarydict_pos_stem, "binarydict_neg_stem":binarydict_neg_stem}
+    save_obj('Stored/Likelihoods/binarydict_pos_stem', binarydict_pos_stem)
+    save_obj('Stored/Likelihoods/binarydict_neg_stem', binarydict_neg_stem)
+    del binarydict_pos_stem
+    del binarydict_neg_stem
+    del trainbow_stem_binary
+    ## tfidf ##
+    train_tfidf = np.load('Stored/Vectors/train_tfidf.npy')
+    tfidf_pos = defaultdict()
+    tfidf_neg = defaultdict()
+    tfidf_pos_stem = defaultdict()
+    tfidf_neg_stem = defaultdict()
+    #not stemmed
+    tfidf_pos_sum_word = train_tfidf[(1+num_pos):,:].sum(axis = 0) #per word summing for positive class
+    tfidf_neg_sum_word = train_tfidf[:num_pos,:].sum(axis = 0) # per word summing for negative class
+    tfidf_pos_denom = train_tfidf[(1+num_pos):,:].sum()+ len(vocab_dict.keys()) #summing all tfidf for positive class
+    tfidf_neg_denom = train_tfidf[:num_pos,:].sum()+ len(vocab_dict.keys()) #summing all tfidf for negative class
+
+    for v in vocab_dict.keys():
+        tfidf_pos[v] = (tfidf_pos_sum_word[vocab_dict[v]]+1) /(tfidf_pos_denom)
+        tfidf_neg[v] = (tfidf_neg_sum_word[vocab_dict[v]]+1) /(tfidf_neg_denom)
+    
+    save_obj('Stored/Likelihoods/tfidf_pos', tfidf_pos)
+    save_obj('Stored/Likelihoods/tfidf_neg', tfidf_neg)
+    del tfidf_pos
+    del tfidf_neg
+    del train_tfidf
+    #stemmed
+    train_tfidf_stem = np.load('Stored/Vectors/train_tfidf_stem.npy')
+    tfidf_stem_pos_sum_word = train_tfidf_stem[(1+num_pos):,:].sum(axis = 0) #per word summing for positive class
+    tfidf_stem_neg_sum_word = train_tfidf_stem[:num_pos,:].sum(axis = 0) # per word summing for negative class
+    tfidf_stem_pos_denom = train_tfidf_stem[(1+num_pos):,:].sum()+ len(stem_vocab_dict.keys()) #summing all tfidf for positive class
+    tfidf_stem_neg_denom = train_tfidf_stem[:num_pos,:].sum()+ len(stem_vocab_dict.keys()) #summing all tfidf for negative class
+
+    for v in stem_vocab_dict.keys():
+        tfidf_pos_stem[v] = (tfidf_stem_pos_sum_word[stem_vocab_dict[v]]+1) /(tfidf_stem_pos_denom)
+        tfidf_neg_stem[v] = (tfidf_stem_neg_sum_word[stem_vocab_dict[v]]+1) /(tfidf_stem_neg_denom)
+
+    save_obj('Stored/Likelihoods/tfidf_pos_stem', tfidf_pos_stem)
+    save_obj('Stored/Likelihoods/tfidf_neg_stem', tfidf_neg_stem)
+    del tfidf_pos_stem
+    del tfidf_neg_stem
+    del train_tfidf_stem
+
+
                             
     print("Word Likelihoods Calculated --- %s seconds ---" % (time.time() - start_time))
-    return wordlikelihood_dict
+    return print('wordlikelihood_dict')
 
-def predict_NB(wordlikelihood_dict,P_positive, P_negative, testdocs, testdocs_stemmed, y_test):
+def predict_NB(P_positive, P_negative):
     '''
     Compute the most likely class for each document in the test set using each of the
     combinations of stemming + frequency count, stemming + binary, no-stemming + frequency
     count, no-stemming + binary.
     '''
     # log scale: http://www.cs.rhodes.edu/~kirlinp/courses/ai/f18/projects/proj3/naive-bayes-log-probs.pdf
-    
+    frequencydict_pos = load_obj('Stored/Likelihoods/frequencydict_pos')
+    frequencydict_neg = load_obj('Stored/Likelihoods/frequencydict_neg')
+    frequencydict_pos_stem = load_obj('Stored/Likelihoods/frequencydict_pos_stem')
+    frequencydict_neg_stem = load_obj('Stored/Likelihoods/frequencydict_neg_stem')
+    binarydict_pos = load_obj('Stored/Likelihoods/binarydict_pos')
+    binarydict_neg = load_obj('Stored/Likelihoods/binarydict_neg')
+    binarydict_pos_stem = load_obj('Stored/Likelihoods/binarydict_pos_stem')
+    binarydict_neg_stem = load_obj('Stored/Likelihoods/binarydict_neg_stem')
+    tfidf_pos = load_obj('Stored/Likelihoods/tfidf_pos')
+    tfidf_neg = load_obj('Stored/Likelihoods/tfidf_neg')
+    tfidf_pos_stem = load_obj('Stored/Likelihoods/tfidf_pos_stem')
+    tfidf_neg_stem = load_obj('Stored/Likelihoods/tfidf_neg_stem')
+    testdocs = np.load('Stored/DocsVocab/testdocs.npy')
+    testdocs_stemmed = np.load('Stored/DocsVocab/testdocs_stemmed.npy')
+    y_test = np.load('Stored/DocsVocab/y_test.npy')
+
+    wordlikelihood_dict = {"frequencydict_pos":frequencydict_pos, "frequencydict_neg":frequencydict_neg, \
+                                "frequencydict_pos_stem":frequencydict_pos_stem, "frequencydict_neg_stem":frequencydict_neg_stem, \
+                                "binarydict_pos":binarydict_pos, "binarydict_neg":binarydict_neg, \
+                                "binarydict_pos_stem":binarydict_pos_stem, "binarydict_neg_stem":binarydict_neg_stem, \
+                                "tfidf_pos":tfidf_pos,"tfidf_neg":tfidf_neg, \
+                                "tfidf_pos_stem":tfidf_pos_stem, "tfidf_neg_stem":tfidf_neg_stem}
     # No-Stemming
     y_pred_freq = np.zeros(y_test.size)
     y_pred_binary = np.zeros(y_test.size)
+    y_pred_tfidf = np.zeros(y_test.size)
     for i, documt in enumerate(testdocs):
         prob_pos_case1 = np.log(P_positive)
         prob_pos_case2 = np.log(P_positive)
+        prob_pos_case3 = np.log(P_positive)
         prob_neg_case1 = np.log(P_negative)
         prob_neg_case2 = np.log(P_negative)
+        prob_neg_case3= np.log(P_negative)
         for word in documt:
             if word in wordlikelihood_dict["frequencydict_pos"].keys():
                 #pos
                 prob_pos_case1 += np.log(wordlikelihood_dict["frequencydict_pos"][word])
                 prob_pos_case2 += np.log(wordlikelihood_dict["binarydict_pos"][word])
+                prob_pos_case3 += np.log(wordlikelihood_dict["tfidf_pos"][word])
                 #neg
                 prob_neg_case1 += np.log(wordlikelihood_dict["frequencydict_neg"][word])
                 prob_neg_case2 += np.log(wordlikelihood_dict["binarydict_neg"][word])
-        
+                prob_neg_case3 += np.log(wordlikelihood_dict["tfidf_neg"][word])
+            
         # No-Stemming + Frequency count
         if prob_pos_case1 > prob_neg_case1:
             y_pred_freq[i] = 1
@@ -318,23 +503,36 @@ def predict_NB(wordlikelihood_dict,P_positive, P_negative, testdocs, testdocs_st
             y_pred_binary[i] = 1
         else:
             y_pred_binary[i] = 0
-            
+
+        # No-Stemming + TFIDF
+        # print(prob_pos_case3)
+        # print(prob_neg_case3)
+        if prob_pos_case3 > prob_neg_case3:
+            y_pred_tfidf[i] = 1
+        else:
+            y_pred_tfidf[i] = 0
+
     # Stemming
     y_pred_freq_stem = np.zeros(y_test.size)
     y_pred_binary_stem = np.zeros(y_test.size)
+    y_pred_tfidf_stem = np.zeros(y_test.size)
     for i, documt in enumerate(testdocs_stemmed):
         prob_pos_case3 = np.log(P_positive)
         prob_pos_case4 = np.log(P_positive)
+        prob_pos_case5 = np.log(P_positive)
         prob_neg_case3 = np.log(P_negative)
         prob_neg_case4 = np.log(P_negative)
+        prob_neg_case5 = np.log(P_negative)
         for word in documt:
             if word in wordlikelihood_dict["frequencydict_pos_stem"].keys():
                 #pos
                 prob_pos_case3 += np.log(wordlikelihood_dict["frequencydict_pos_stem"][word])
                 prob_pos_case4 += np.log(wordlikelihood_dict["binarydict_pos_stem"][word])
+                prob_pos_case5 += np.log(wordlikelihood_dict["tfidf_pos_stem"][word])
                 #neg
                 prob_neg_case3 += np.log(wordlikelihood_dict["frequencydict_neg_stem"][word])
                 prob_neg_case4 += np.log(wordlikelihood_dict["binarydict_neg_stem"][word])
+                prob_neg_case5 += np.log(wordlikelihood_dict["tfidf_neg_stem"][word])
                         
         # Stemming + Frequency count
         if prob_pos_case3 > prob_neg_case3:
@@ -348,7 +546,13 @@ def predict_NB(wordlikelihood_dict,P_positive, P_negative, testdocs, testdocs_st
         else:
             y_pred_binary_stem[i] = 0
 
-    predictions = [y_pred_freq, y_pred_binary, y_pred_freq_stem, y_pred_binary_stem]
+        # Stemming + TFIDF
+        if prob_pos_case5 > prob_neg_case5:
+            y_pred_tfidf_stem[i] = 1
+        else:
+            y_pred_tfidf_stem[i] = 0
+
+    predictions = [y_pred_freq, y_pred_binary, y_pred_tfidf, y_pred_freq_stem, y_pred_binary_stem,y_pred_tfidf_stem]
     print("NB Predictions Acquired --- %s seconds ---" % (time.time() - start_time))
     return predictions
 
