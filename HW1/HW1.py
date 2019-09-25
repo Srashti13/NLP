@@ -35,10 +35,10 @@ def main():
     main function
     '''
     print("Start Program --- %s seconds ---" % (time.time() - start_time))
-    # get_trainandtest_vocabanddocs()
-    # get_BOW()
+    get_trainandtest_vocabanddocs()
+    get_Vectors()
     P_positive, P_negative  = get_class_priors()
-    get_perword_likelihood()
+    # get_perword_likelihood()
     predictions = predict_NB(P_positive, P_negative)
     y_test = np.load('Stored/DocsVocab/y_test.npy')
     evaluate(predictions[0], y_test, "NB-NOSTEM-FREQ")
@@ -47,11 +47,74 @@ def main():
     evaluate(predictions[3], y_test, "NB-STEM-FREQ")
     evaluate(predictions[4], y_test, "NB-STEM-BINARY")
     evaluate(predictions[5], y_test, "NB-STEM-TFIDF")
-    LR_model = Logistic_Regression_L2_SGD(n_iter=25,eta=0.1, batch_size=len(np.load('Stored/Vectors/trainbow_freq.npy')))
+    
+    #nostem no l2
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=1, batch_size=10000)
     LR_model.fit(np.load('Stored/Vectors/trainbow_freq.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-bowfreq-noL2',LR_model)
     predictions = LR_model.predict(np.load('Stored/Vectors/testbow_freq.npy'))
     evaluate(predictions, y_test, "LOGISTIC_FREQ_NOL2")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=1, batch_size=10000)
+    LR_model.fit(np.load('Stored/Vectors/trainbow_binary.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-bow_binary-noL2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/testbow_binary.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_BINARY_NOL2")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=1, batch_size=10000)
+    LR_model.fit(np.load('Stored/Vectors/train_tfidf.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-tfidf-noL2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/test_tfidf.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_TFIDF_NOL2")
 
+    #stem no l2
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=1, batch_size=10000)
+    LR_model.fit(np.load('Stored/Vectors/trainbow_stem_freq.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-bowfreq-stem-noL2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/testbow_stem_freq.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_FREQ_STEM_NOL2")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=1, batch_size=10000)
+    LR_model.fit(np.load('Stored/Vectors/trainbow_stem_binary.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-bow_binary-stem-noL2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/testbow_stem_binary.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_BINARY_STEM_NOL2")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=1, batch_size=10000)
+    LR_model.fit(np.load('Stored/Vectors/train_tfidf_stem.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-tfidf-stem-noL2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/test_tfidf_stem.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_TFIDF_STEM_NOL2")
+
+    #l2
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=0.1,l2=5, batch_size=len(np.load('Stored/Vectors/trainbow_freq.npy')))
+    LR_model.fit(np.load('Stored/Vectors/trainbow_freq.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-bowfreq-L2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/testbow_freq.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_FREQ_L2")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=0.1,l2=5, batch_size=len(np.load('Stored/Vectors/trainbow_binary.npy')))
+    LR_model.fit(np.load('Stored/Vectors/trainbow_binary.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-bow_binary-L2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/testbow_binary.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_BINARY_L2")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=0.1,l2=5, batch_size=len(np.load('Stored/Vectors/train_tfidf.npy')))
+    LR_model.fit(np.load('Stored/Vectors/train_tfidf.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-tfidf-L2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/test_tfidf.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_TFIDF_L2")
+
+    #stem l2
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=0.1,l2=5, batch_size=len(np.load('Stored/Vectors/trainbow_Stem_freq.npy')))
+    LR_model.fit(np.load('Stored/Vectors/trainbow_stem_freq.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-bowfreq-stem-L2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/testbow_freq.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_FREQ_L2")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=0.1,l2=5, batch_size=len(np.load('Stored/Vectors/trainbow_stem_binary.npy')))
+    LR_model.fit(np.load('Stored/Vectors/trainbow_binary.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-bow_binary-stem-L2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/testbow_binary.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_BINARY_L2")
+    LR_model = Logistic_Regression_L2_SGD(n_iter=5,eta=0.1,l2=5, batch_size=len(np.load('Stored/Vectors/train_tfidf_stem.npy')))
+    LR_model.fit(np.load('Stored/Vectors/train_tfidf_stem.npy'), np.load('Stored/DocsVocab/y_train.npy'))
+    save_obj('Stored/Models/LR-tfidf-stem-L2',LR_model)
+    predictions = LR_model.predict(np.load('Stored/Vectors/test_tfidf_stem.npy'))
+    evaluate(predictions, y_test, "LOGISTIC_TFIDF_L2")
 
 def get_trainandtest_vocabanddocs():
     '''
@@ -72,8 +135,8 @@ def get_trainandtest_vocabanddocs():
         """
         Tokenizer that tokenizes text. Can also stem words.
         """
-        from nltk.corpus import stopwords
-        stopwords = set(stopwords.words('english')) 
+        # from nltk.corpus import stopwords
+        # stopwords = set(stopwords.words('english')) 
         txt = txt.translate(str.maketrans('', '', string.punctuation))
         txt = re.sub(r'\d+', '', txt)
         def lower_repl(match):
@@ -90,7 +153,7 @@ def get_trainandtest_vocabanddocs():
                 tokensfinal = tokensfinal + to_add
             else:
                 tokensfinal.append(i)
-        tokens = [w for w in tokensfinal if w not in stopwords]
+        # tokens = [w for w in tokensfinal if w not in stopwords]
         if stem:
             stemmer = PorterStemmer()
             stemmed = [stemmer.stem(item) for item in tokens]
@@ -141,7 +204,7 @@ def get_trainandtest_vocabanddocs():
     print("Test Docs Prepared --- %s seconds ---" % (time.time() - start_time))
     return print('vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test')
 
-def get_BOW(): 
+def get_Vectors(): 
     '''
     Extract Features: Convert documents to vectors using Bag of Words (BoW) representation. Do
     this in two ways: keeping frequency count where each word is represented by its count in each
@@ -598,7 +661,7 @@ class Logistic_Regression_L2_SGD:
         return 1/(1+ np.exp(-z))
     
     def fit(self, X, y):
-        print("Fitting Logistic Regression --- %s seconds ---" % (time.time() - start_time))
+        print("Fitting Logistic Regression, eta = %s, %s iterations, L2 = %s --- %s seconds ---" % (self.eta, self.n_iter,self.l2,time.time() - start_time))
         # fit the training data
         
         y = y.reshape(-1,1)
