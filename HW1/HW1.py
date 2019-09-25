@@ -22,27 +22,32 @@ emoticon_string = r"(:\)|:-\)|:\(|:-\(|;\);-\)|:-O|8-|:P|:D|:\||:S|:\$|:@|8o\||\
 #https://www.regexpal.com/96995
 
 
-def main():
+def main(method='NB'):
     '''
     main function
     '''
-    print("Start Program --- %s seconds ---" % (time.time() - start_time))
-    vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test = get_trainandtest_vocabanddocs()
-    train_vecs, vocab_dict, stem_vocab_dict, test_vecs = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, testdocs, testdocs_stemmed)
-    P_positive, P_negative  = get_class_priors(y_train)
-    wordlikelihood_dict = get_perword_likelihood(train_vecs[0], train_vecs[1], train_vecs[2], train_vecs[3],vocab_dict, stem_vocab_dict, y_train)
-    predictions = predict_NB(wordlikelihood_dict,P_positive, P_negative, testdocs, testdocs_stemmed, y_test)
-    evaluate(predictions[0], y_test, "NB-NOSTEM-FREQ")
-    evaluate(predictions[1], y_test, "NB-NOSTEM-BINARY")
-    evaluate(predictions[2], y_test, "NB-STEM-FREQ")
-    evaluate(predictions[3], y_test, "NB-STEM-BINARY")
-    LR_model = Logistic_Regression_L2_SGD(n_iter=10,eta=0.05, batch_size=len(train_vecs[0]))
-    LR_model.fit(train_vecs[0], y_train)
-    predictions = LR_model.predict(test_vecs[0])
-    evaluate(predictions, y_test, "LOGISTIC_FREQ_NOL2")
+    if method=='NB':
+        print("Start Program --- %s seconds ---" % (time.time() - start_time))
+        vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test = get_trainandtest_vocabanddocs(NB=True)
+        train_vecs, vocab_dict, stem_vocab_dict, test_vecs = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, testdocs, testdocs_stemmed)
+        P_positive, P_negative  = get_class_priors(y_train)
+        wordlikelihood_dict = get_perword_likelihood(train_vecs[0], train_vecs[1], train_vecs[2], train_vecs[3],vocab_dict, stem_vocab_dict, y_train)
+        predictions = predict_NB(wordlikelihood_dict,P_positive, P_negative, testdocs, testdocs_stemmed, y_test)
+        evaluate(predictions[0], y_test, "NB-NOSTEM-FREQ")
+        evaluate(predictions[1], y_test, "NB-NOSTEM-BINARY")
+        evaluate(predictions[2], y_test, "NB-STEM-FREQ")
+        evaluate(predictions[3], y_test, "NB-STEM-BINARY")
+    else:
+        print("Start Program --- %s seconds ---" % (time.time() - start_time))
+        vocabulary, vocabulary_stemmed, trainingdocs, trainingdocs_stemmed, y_train, testdocs, testdocs_stemmed, y_test = get_trainandtest_vocabanddocs(NB=False)
+        train_vecs, vocab_dict, stem_vocab_dict, test_vecs = get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, testdocs, testdocs_stemmed)
+        LR_model = Logistic_Regression_L2_SGD(n_iter=50,eta=0.05, batch_size=5000) #evaluating on the stemmed frequency bag of words
+        LR_model.fit(train_vecs[1], y_train)
+        predictions = LR_model.predict(test_vecs[1])
+        evaluate(predictions, y_test, "LOGISTIC_FREQ_NOL2")
 
 
-def get_trainandtest_vocabanddocs():
+def get_trainandtest_vocabanddocs(NB=True):
     '''
     Create your Vocabulary: Read the complete training data word by word and create the
     vocabulary V for the corpus. You must not include the test set in this process. Remove any
@@ -57,7 +62,7 @@ def get_trainandtest_vocabanddocs():
     Consider emoticons in this process. You can use an emoticon tokenizer, if you so choose. If yes, specify which one.
     '''
 
-    def tokenize(txt,stem=False):
+    def tokenize(txt,stem=False, model=NB):
         """
         Tokenizer that tokenizes text. Can also stem words.
         """
@@ -76,6 +81,8 @@ def get_trainandtest_vocabanddocs():
             else:
                 tokensfinal.append(i)
         tokens = tokensfinal
+        if not model: # remove alphanumeric tokens if doing logistic regression
+            tokens = [word for word in tokens if word.isalpha()]
         if stem:
             stemmer = PorterStemmer()
             stemmed = [stemmer.stem(item) for item in tokens]
@@ -136,7 +143,7 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, 
     ncol_stem = len(vocabulary_stemmed)
     nrow_stem = len(trainingdocs_stemmed)
     trainbow_stem_freq = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
-    testbow_stem_freq = np.zeros((nrow,ncol), dtype=np.int8)
+    testbow_stem_freq = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
     
     # creating a dictionary where the key is the distinct vocab word and the
     # value is the index that will be used in the matrix
@@ -162,7 +169,7 @@ def get_BOW(trainingdocs, trainingdocs_stemmed, vocabulary, vocabulary_stemmed, 
     for n, doc in enumerate(testdocs): #test freq
         for word in doc:
             if word in stem_vocab_dict:
-                testbow_freq[n, stem_vocab_dict[word]] += 1
+                testbow_freq[n, vocab_dict[word]] += 1
 
     for n, doc in enumerate(testdocs_stemmed): #test freq stemmed
         for word in doc:
@@ -211,7 +218,7 @@ def get_class_priors(y_train):
     P_positive = list(y_train).count(1)/y_train.size
 
     print("Priors Assessed --- %s seconds ---" % (time.time() - start_time))
-    return P_negative, P_positive
+    return P_positive, P_negative
 
 def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, trainbow_stem_binary,vocab_dict, stem_vocab_dict, y_train):
     '''
@@ -258,7 +265,7 @@ def get_perword_likelihood( trainbow_freq, trainbow_stem_freq, trainbow_binary, 
     trainbow_binary_pos_sum = trainbow_binary[(1+num_pos):,:].sum(axis = 0) #per word summing for positive class
     trainbow_binary_neg_sum = trainbow_binary[:num_pos,:].sum(axis = 0) # per word summing for negative class
     pos_docs = num_pos #number of positive documents
-    neg_docs = list(y_train).count(1) #number of negative documents
+    neg_docs = list(y_train).count(0) #number of negative documents
     
     for v in vocab_dict.keys():
             
