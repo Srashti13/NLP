@@ -1,6 +1,7 @@
-**AIT726**
-******************************
-**HW1** <br>
+AIT726
+=======
+HW1
+-------
 In this assignment, you will build a naïve Bayes and a logistic regression classifier for sentiment
 classification. We are defining sentiment classification as two classes: positive and negative.
 Our data set consists of movie reviews. The zip directory for the data contains training and test
@@ -30,7 +31,8 @@ i. main - runs all of the functions <br>
 
 Due to the size of the dataset, and the number of tokens we are required to keep, many of the operations when creating vectors utilize a large amount of RAM. <br>
 This code was tested on a machine with 64GB of DDR4 RAM. Variables are deleted throughout when they are not needed to save memory. Needed data structures are saved and loaded for later use. <br>
-**results**<br><br>
+results
+--------
 <center>
 
 Model | Accuracy
@@ -54,3 +56,5 @@ LOGISTIC_BINARY_STEM_L2 | 79.732
 LOGISTIC_TFIDF_STEM_L2 | 85.592
 
 </center>
+
+*****************************
