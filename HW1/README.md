@@ -20,7 +20,7 @@ Preprocessing:<br>
     *Unstemmed
 Command to run the file: <br>
 `python HW1.py `<br>
-''
+'''
 i. main - runs all of the functions <br>
     ii. get_trainandtest_vocabanddocs() - converts dataset into tokens (stemmed and unstemmed), creates megatraining document and extracts vocabulary<br>
     iii. get_vectors() - creates BOW and TFIDF vectors for test and train both stemmed and unstemmed<br>
@@ -33,9 +33,8 @@ i. main - runs all of the functions <br>
 Due to the size of the dataset, and the number of tokens we are required to keep, many of the operations when creating vectors utilize a large amount of RAM. <br>
 This code was tested on a machine with 64GB of DDR4 RAM. Variables are deleted throughout when they are not needed to save memory. Needed data structures are saved and loaded for later use. <br>
 
-results
+Results:
 --------
-<center>
 
 Model | Accuracy
 :------------: | :-------------:
@@ -56,7 +55,5 @@ LOGISTIC_TFIDF_L2 | 86.068
 LOGISTIC_FREQ_STEM_L2 | 58.36
 LOGISTIC_BINARY_STEM_L2 | 79.732
 LOGISTIC_TFIDF_STEM_L2 | 85.592
-
-</center>
 
 *****************************
