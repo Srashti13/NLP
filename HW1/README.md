@@ -31,7 +31,8 @@ i. main - runs all of the functions <br>
 Due to the size of the dataset, and the number of tokens we are required to keep, many of the operations when creating vectors utilize a large amount of RAM. <br>
 This code was tested on a machine with 64GB of DDR4 RAM. Variables are deleted throughout when they are not needed to save memory. Needed data structures are saved and loaded for later use. <br>
 **results**<br>
-Markdown | Less | Pretty
---- | --- | ---
-*Still* | `renders` | **nicely**
-1 | 2 | 3
+| test | test | test |   |   |
+|------|------|------|---|---|
+| d    | d    |      |   |   |
+|      |      | d    |   |   |
+| d    |      | d    |   |   |
