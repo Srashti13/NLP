@@ -33,7 +33,7 @@ This code was tested on a machine with 64GB of DDR4 RAM. Variables are deleted t
 **results**<br><br>
 
 
-First Header | Second Header
------------- | -------------
-Content from cell 1 | Content from cell 2
-Content in the first column | Content in the second column
+Model | Accuracy
+:------------: | :-------------:
+NB-NOSTEM-FREQ| 80.8
+NB-NOSTEM-BINARY | 81.6
