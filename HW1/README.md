@@ -31,9 +31,26 @@ i. main - runs all of the functions <br>
 Due to the size of the dataset, and the number of tokens we are required to keep, many of the operations when creating vectors utilize a large amount of RAM. <br>
 This code was tested on a machine with 64GB of DDR4 RAM. Variables are deleted throughout when they are not needed to save memory. Needed data structures are saved and loaded for later use. <br>
 **results**<br><br>
-
+<center>
 
 Model | Accuracy
 :------------: | :-------------:
 NB-NOSTEM-FREQ| 80.8
 NB-NOSTEM-BINARY | 81.6
+NB-NOSTEM-TFIDF | 71.26
+NB-STEM-FREQ | 80.272
+NB-STEM-BINARY | 80.86
+NB-STEM-TFIDF | 68.968
+LOGISTIC_FREQ_NOL2 | 82.488
+LOGISTIC_TFIDF_NOL2 | 88.588
+LOGISTIC_FREQ_STEM_NOL2 | 61.508
+LOGISTIC_BINARY_STEM_NOL2 | 83.18
+LOGISTIC_TFIDF_STEM_NOL2 | 88.144
+LOGISTIC_FREQ_L2 | 55.316
+LOGISTIC_BINARY_L2 | 78.18
+LOGISTIC_TFIDF_L2 | 86.068
+LOGISTIC_FREQ_STEM_L2 | 58.36
+LOGISTIC_BINARY_STEM_L2 | 79.732
+LOGISTIC_TFIDF_STEM_L2 | 85.592
+
+</center>
