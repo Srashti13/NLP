@@ -8,17 +8,17 @@ Our data set consists of movie reviews. The zip directory for the data contains 
 datasets, where each file contains one movie review. You will build the model using training
 data and evaluate with test data. Training data contains 25000 reviews and test data contains
 25000 reviews. <br>
-Models:<br>
+**Models:**<br>
     * Naive Bayes<br>
     * Logistic Regression<br>
-Vectors: <br>
+**Vectors:** <br>
     * Bag of Words - Frequency<br>
     * Bag of Words - Binary (is word present in document)<br>
     * Term Frequency Inverse Document Frequency<br>
-Preprocessing:<br>
+**Preprocessing:**<br>
     * Stemmed<br>
     * Unstemmed<br>
-Command to run the file: <br>
+**Command to run the file:** <br>
 `python HW1.py `<br>
 
 >i. main - runs all of the functions <br>
