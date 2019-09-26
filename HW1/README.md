@@ -27,12 +27,11 @@ i. main - runs all of the functions <br>
     vi. predict_NB() - predicts the class of all of the test documents for all of the feature vectors using Naive Bayes<br>
     vii. evaluate - returns accuracy and confusion matrix for predictions <br>
     viii. Logistic_Regression_L2_SGD - logistic regression model class used to create the model and form predictions on test vectors<br>
-<br>
+
 Due to the size of the dataset, and the number of tokens we are required to keep, many of the operations when creating vectors utilize a large amount of RAM. <br>
 This code was tested on a machine with 64GB of DDR4 RAM. Variables are deleted throughout when they are not needed to save memory. Needed data structures are saved and loaded for later use. <br>
 **results**<br>
-| test 	| test 	| test 	|   	|   	|
-|------	|------	|------	|---	|---	|
-| d    	| d    	|      	|   	|   	|
-|      	|      	| d    	|   	|   	|
-| d    	|      	| d    	|   	|   	|
+| First Header  | Second Header |
+| ------------- | ------------- |
+| Content Cell  | Content Cell  |
+| Content Cell  | Content Cell  |
