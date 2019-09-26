@@ -31,8 +31,8 @@ i. main - runs all of the functions <br>
 Due to the size of the dataset, and the number of tokens we are required to keep, many of the operations when creating vectors utilize a large amount of RAM. <br>
 This code was tested on a machine with 64GB of DDR4 RAM. Variables are deleted throughout when they are not needed to save memory. Needed data structures are saved and loaded for later use. <br>
 **results**<br>
-| Model        | Accuracy |           
-| :-------------: |:-------------:| 
-| col 3 is      | right-aligned | 
-| col 2 is      | centered      | 
-| zebra stripes | are neat      |  
+| Tables        | Are           | Cool  |
+| ------------- |:-------------:| -----:|
+| col 3 is      | right-aligned | $1600 |
+| col 2 is      | centered      |   $12 |
+| zebra stripes | are neat      |    $1 |
