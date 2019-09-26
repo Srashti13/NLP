@@ -45,8 +45,8 @@ def load_obj(name ):
 
 def main():
     '''
-    The main function can be utilized to create vectors, vocabulary, and likelihoods for predictions and evaluation. Users may 
-    also comment out the creation steps and merely evaluate the result on the saved data.
+    The main function can be utilized to create vectors, vocabulary, likelihoods for NB, test set predictions and test set evaluation. 
+    Comment out the creation steps and merely evaluate the results on the saved data to save time.
     '''
     print("Start Program --- %s minutes ---" % (round((time.time() - start_time)/60,2)))
 
