@@ -43,11 +43,12 @@ def load_obj(name ):
     with open( name + '.pkl', 'rb') as f:
         return pickle.load(f)
 
-def main():
+def main(method='NB'):
     '''
     The main function can be utilized to create vectors, vocabulary, likelihoods for NB, test set predictions and test set evaluation. 
     Comment out the creation steps and merely evaluate the results on the saved data to save time.
     '''
+
     print("Start Program --- %s minutes ---" % (round((time.time() - start_time)/60,2)))
 
     # create vocabulary, tokenize dataset, create vectors, and store perword likelihoods by class
@@ -136,6 +137,7 @@ def main():
     evaluate(predictions, y_test, "LOGISTIC_TFIDF_STEM_L2")
 
 def get_trainandtest_vocabanddocs():
+
     '''
     Create your Vocabulary: Read the complete training data word by word and create the
     vocabulary V for the corpus. You must not include the test set in this process. Remove any
@@ -159,7 +161,7 @@ def get_trainandtest_vocabanddocs():
 
     '''
 
-    def tokenize(txt,stem=False):
+    def tokenize(txt,stem=False, model=NB):
         """
         Tokenizer that tokenizes text. Can also stem words.
         """
@@ -181,8 +183,10 @@ def get_trainandtest_vocabanddocs():
                 tokensfinal = tokensfinal + to_add
             else:
                 tokensfinal.append(i)
+
         tokens= tokensfinal
         # tokens = [w for w in tokensfinal if w not in stopwords] #not used as per requirements
+
         if stem:
             stemmer = PorterStemmer()
             stemmed = [stemmer.stem(item) for item in tokens]
@@ -300,6 +304,7 @@ def get_vectors():
     np.save('Stored/Vectors/testbow_freq',testbow_freq)
     del testbow_freq #free memory
 
+
     #test freq stemmed
     testbow_stem_freq = np.zeros((nrow_stem,ncol_stem), dtype=np.int8)
     for n, doc in enumerate(testdocs_stemmed): 
@@ -403,6 +408,7 @@ def get_class_priors():
     y_train = np.load('Stored/DocsVocab/y_train.npy')
     P_negative = list(y_train).count(0)/y_train.size
     P_positive = list(y_train).count(1)/y_train.size
+
 
     print("Priors Assessed --- %s minutes ---" % (round((time.time() - start_time)/60,2)))
     return P_positive,P_negative
