@@ -30,9 +30,10 @@ def main():
     '''
     The main function 
     '''
-    print("Start Program --- %s minutes ---" % (round((time.time() - start_time)/60,2)))
+    print("Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     docs = get_docs()
     ngrams, fakegrams = get_ngrams(docs,2)
+    train, test = get_vectors(ngrams, fakegrams)
     return
 
 def get_docs():
@@ -78,7 +79,7 @@ def get_docs():
             docs.extend(tokenize(tweet)) 
 
     # print(docs)
-    print("Train Docs Prepared --- %s seconds ---" % (round((time.time() - start_time)/60,2)))
+    print("Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))
 
    
     return docs 
@@ -101,6 +102,21 @@ def get_ngrams(docs, num_grams):
 
     # print(fakegrams)
     # print([b for b in grams])
+    print("Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
     return grams, fakegrams
+
+def get_vectors(ngrams, fakegrams):
+    '''
+    put grams into vectors and make tst and train set for model
+    '''
+    vector = []
+    for element in ngrams:
+        vector.append([element[0],element[1],1])
+    for element in fakegrams:
+        vector.append([element[0],element[1],0])
+
+    
+    return train, test
+
 if __name__ == "__main__":
     main()
