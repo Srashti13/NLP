@@ -17,6 +17,7 @@ from nltk.util import ngrams
 from nltk import word_tokenize
 from collections import defaultdict
 from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
 import random
 
 
@@ -32,8 +33,7 @@ def main():
     '''
     print("Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     docs = get_docs()
-    ngrams, fakegrams = get_ngrams(docs,2)
-    train, test = get_vectors(ngrams, fakegrams)
+    vector, labels = get_ngrams_vector(docs,2)
     return
 
 def get_docs():
@@ -84,7 +84,7 @@ def get_docs():
    
     return docs 
 
-def get_ngrams(docs, num_grams):
+def get_ngrams_vector(docs, num_grams):
     '''
     Construct your n-grams: Create positive n-gram samples by collecting all pairs of adjacent
     tokens. Create 2 negative samples for each positive sample by keeping the first word the same
@@ -100,22 +100,28 @@ def get_ngrams(docs, num_grams):
                 random_word_in_corpus = random.choice(docs)
             fakegrams.append((element[0], random_word_in_corpus))
 
+    gramvec, labels = [], []
+    for element in grams:
+        gramvec.append([element[0],element[1]])
+        labels.append(1)
+    for element in fakegrams:
+        gramvec.append([element[0],element[1]])
+        labels.append(0)
+
     # print(fakegrams)
     # print([b for b in grams])
+    # print(vector)
     print("Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return grams, fakegrams
+    return gramvec, labels
 
-def get_vectors(ngrams, fakegrams):
+def get_embedded_traintest(vector,docs):
     '''
-    put grams into vectors and make tst and train set for model
+    put grams into embedding format and make tst and train set for model
     '''
-    vector = []
-    for element in ngrams:
-        vector.append([element[0],element[1],1])
-    for element in fakegrams:
-        vector.append([element[0],element[1],0])
+    vocab = set(docs)
 
-    
+
+
     return train, test
 
 if __name__ == "__main__":
