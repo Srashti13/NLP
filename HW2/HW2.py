@@ -34,6 +34,7 @@ def main():
     print("Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     docs = get_docs()
     vector, labels = get_ngrams_vector(docs,2)
+    train, test = get_embedded_traintest(docs, vector, labels)
     return
 
 def get_docs():
@@ -114,15 +115,33 @@ def get_ngrams_vector(docs, num_grams):
     print("Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
     return gramvec, labels
 
-def get_embedded_traintest(vector,docs):
+def get_embedded_traintest(docs, gramvec, labels):
     '''
     put grams into embedding format and make tst and train set for model
     '''
-    vocab = set(docs)
+    # vocab = set(docs) for manual encoding...
+    # word_to_ix = {word: i for i, word in enumerate(vocab)}
+    # print(word_to_ix['the'])
 
-
-
-    return train, test
+    #load some twitter embeddings #https://github.com/RaRe-Technologies/gensim-data
+    print("Loading Twitter Embeddings --- %s seconds ---" % (round((time.time() - start_time),2)))
+    import gensim.downloader as api
+    model = api.load("glove-twitter-25")
+    print("Twitter Embeddings Loaded --- %s seconds ---" % (round((time.time() - start_time),2)))
+    print("Encoding Train/Test Vectors --- %s seconds ---" % (round((time.time() - start_time),2)))
+    embeddingvec = []
+    print(len(gramvec))
+    for element in gramvec:
+        try:
+            embeddingvec.append([model[element[0]],model[element[1]]])
+        except KeyError:
+            model.add(element[0],np.random.rand(25,1),replace=False)#https://radimrehurek.com/gensim/models/keyedvectors.html#gensim.models.keyedvectors.Word2VecKeyedVectors
+            model.add(element[1],np.random.rand(25,1),replace=False)
+            embeddingvec.append([model[element[0]],model[element[1]]])
+    print(embeddingvec)
+    print("Encoded Train/Test Vectors --- %s seconds ---" % (round((time.time() - start_time),2)))
+    return train, test, word_to_ix
+  
 
 if __name__ == "__main__":
     main()
