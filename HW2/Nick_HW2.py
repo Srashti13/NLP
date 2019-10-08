@@ -17,7 +17,11 @@ from collections import defaultdict
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 import random
-
+import torch.utils.data as data_utils
+import torch
+import torch.nn.functional as F
+import torch.optim as optim
+import torch.nn as nn 
 
 
 #emoji regex
@@ -31,9 +35,10 @@ def main():
     '''
     print("Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     docs, sentences = get_docs()
-    vector, labels = get_ngrams_vector(docs,sentences,2)
-    train, test = get_embedded_traintest(docs, vector, labels)
+    vector, labels,ngram_array, ngram_label_array, vocab = get_ngrams_vector(docs,sentences,2)
+    train, test = get_embedded_traintest(docs, vector, labels, ngram_array, ngram_label_array, vocab)
     return
+
 
 def get_docs():
 
@@ -73,16 +78,17 @@ def get_docs():
     sentences = []
     #create megadocument of all training tweets
     for f in os.listdir('LanguageModelingData'):
-            tweet = open(os.path.join('LanguageModelingData',f),encoding="utf8").read()
-            token_tweets = tokenize(tweet)
-            docs.extend(token_tweets) 
-            sentences.append(token_tweets)
+        tweet = open(os.path.join('LanguageModelingData',f),encoding="utf8").read()
+        token_tweets = tokenize(tweet)
+        docs.extend(token_tweets) 
+        sentences.append(token_tweets)
 
     # print(docs)
     print("Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))
 
    
     return docs, sentences 
+
 
 def get_ngrams_vector(docs, sentences, num_grams):
     '''
@@ -98,7 +104,7 @@ def get_ngrams_vector(docs, sentences, num_grams):
     for sentence in sentences:
         for gram in ngrams(sentence, 2):
             ngram_list.append(gram)
-            
+    
     # dictionary with the key being the first term in the bigram and the values
     # being the second terms
     ngram_dict = defaultdict(list)
@@ -112,7 +118,7 @@ def get_ngrams_vector(docs, sentences, num_grams):
         # get two fake ngrams for each correct one
         for _ in range(2): 
             random_word = random.choice(docs)
-            while random_word == gram[0] or random_word in ngram_dict[gram]:
+            while random_word == gram[0] or random_word in ngram_dict[gram[0]]:
                 random_word = random.choice(docs)
             fakegrams.append((gram[0], random_word))
     
@@ -121,44 +127,157 @@ def get_ngrams_vector(docs, sentences, num_grams):
     gramvec, labels = [], []
     for element in ngram_list:
         gramvec.append([element[0],element[1]])
-        labels.append(1)
+        labels.append([1])
     for element in fakegrams:
         gramvec.append([element[0],element[1]])
-        labels.append(0)
+        labels.append([0])
 
-    # print(fakegrams)
-    # print([b for b in grams])
-    # print(vector)
+    
+    vocab = set(docs)
+    word_to_ix = {word: i for i, word in enumerate(vocab)}
+    
+    ngramlabeled = [[gram] + label for gram, label in zip(gramvec,labels)]
+    
+    ngram_values = []
+    for context, label in ngramlabeled:
+        ngram_values.append([word_to_ix[w] for w in context])
+    
+    ngram_labels = []
+    for context, label in ngramlabeled:
+        ngram_labels.append([label])
+        
+    ngram_array = np.array(ngram_values)
+    ngram_label_array = np.array(ngram_labels)
+    
     print("Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return gramvec, labels
+    return gramvec, labels, ngram_array, ngram_label_array, vocab
 
-def get_embedded_traintest(docs, gramvec, labels):
+
+
+
+
+def get_embedded_traintest(docs, gramvec, labels, ngram_array, ngram_label_array, vocab):
     '''
-    put grams into embedding format and make tst and train set for model
+    put grams into embedding format and make test and train set for model
     '''
-    # vocab = set(docs) for manual encoding...
-    # word_to_ix = {word: i for i, word in enumerate(vocab)}
-    # print(word_to_ix['the'])
+    
+    BATCH_SIZE = 2500
 
-    #load some twitter embeddings #https://github.com/RaRe-Technologies/gensim-data
-    print("Loading Twitter Embeddings --- %s seconds ---" % (round((time.time() - start_time),2)))
-    import gensim.downloader as api
-    model = api.load("glove-twitter-25")
-    print("Twitter Embeddings Loaded --- %s seconds ---" % (round((time.time() - start_time),2)))
-    print("Encoding Train/Test Vectors --- %s seconds ---" % (round((time.time() - start_time),2)))
-    embeddingvec = []
-    print(len(gramvec))
-    for element in gramvec:
-        try:
-            embeddingvec.append([model[element[0]],model[element[1]]])
-        except KeyError:
-            model.add(element[0],np.random.rand(25,1),replace=False)#https://radimrehurek.com/gensim/models/keyedvectors.html#gensim.models.keyedvectors.Word2VecKeyedVectors
-            model.add(element[1],np.random.rand(25,1),replace=False)
-            embeddingvec.append([model[element[0]],model[element[1]]])
-    print(embeddingvec)
-    print("Encoded Train/Test Vectors --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return train, test, word_to_ix
-  
+    X_train, X_test, y_train, y_test = train_test_split(ngram_array, ngram_label_array, test_size=0.2, 
+                                                       random_state=1234, shuffle=True, stratify=ngram_label_array)
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+                                                       random_state=1234, shuffle=True, stratify=y_train)
+    
+    
+    X_train = torch.from_numpy(X_train)
+    X_train = X_train.long()
+    y_train = torch.from_numpy(y_train)
+    y_train = y_train.float()
+    X_valid = torch.from_numpy(X_valid)
+    X_valid = X_valid.long()
+    y_valid = torch.from_numpy(y_valid)
+    y_valid = y_valid.float()
+    X_test = torch.from_numpy(X_test)
+    X_test = X_test.long()
+    y_test = torch.from_numpy(y_test)
+    y_test = y_test.float()
+    
+    
+    train = data_utils.TensorDataset(X_train, y_train)
+    valid = data_utils.TensorDataset(X_valid, y_valid)
+    test = data_utils.TensorDataset(X_test, y_test)
+    trainloader = data_utils.DataLoader(train, batch_size=BATCH_SIZE, shuffle=False)
+    validloader = data_utils.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False)
+    testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
+    
+    
+    
+    EMBEDDING_DIM = 25
+    CONTEXT_SIZE = 2
+    vocab_size = len(vocab)
+    #word_to_ix = {word: i for i, word in enumerate(vocab)}
+    class NGramLanguageModeler(nn.Module):
+    
+        def __init__(self, vocab_size, embedding_dim, context_size, batch_size):
+            super(NGramLanguageModeler, self).__init__()
+            self.embeddings = nn.Embedding(vocab_size*batch_size, embedding_dim)
+            self.linear1 = nn.Linear(context_size * embedding_dim*batch_size, 20)
+            self.linear2 = nn.Linear(20, batch_size)
+            self.out_act = nn.Sigmoid()
+    
+        def forward(self, inputs):
+            embeds = self.embeddings(inputs).view((1, -1))
+            out1 = F.relu(self.linear1(embeds))
+            out3 = self.linear2(out1)
+            yhat = self.out_act(out3)
+            return yhat
+    
+    losses = []
+    loss_function = nn.BCELoss()
+    model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, BATCH_SIZE)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    optimizer = optim.SGD(model.parameters(), lr=0.00001)
 
+    yhat_list = []
+    context_list = []
+    labels = []
+    
+    # setting these up because the neural network won't run if the batch size 
+    # is not the same for all instances due to matrix sizes not matching up
+    train_maxiter = X_train.size(0)//BATCH_SIZE
+    valid_maxiter = X_valid.size(0)//BATCH_SIZE
+    
+    
+    for epoch in range(5):
+        iteration = 0
+        running_loss = 0.0
+        print('Epoch: {}'.format(epoch+1))  
+        for i, (context, label) in enumerate(trainloader):
+            if i+1 < train_maxiter:
+
+                # zero out the gradients from the old instance
+                optimizer.zero_grad()
+                # Run the forward pass and get predicted output
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model(context)
+                yhat = yhat.view(-1,1)
+                yhat_list.append(yhat)
+                context_list.append(context)
+
+
+                # Compute Binary Cross-Entropy
+                labels.append(label)
+                loss = loss_function(yhat, label)
+        
+                # Step 5. Do the backward pass and update the gradient
+                loss.backward()
+                optimizer.step()
+                iteration += 1
+                # Get the Python number from a 1-element Tensor by calling tensor.item()
+                running_loss += loss.item()
+                
+                # Get the accuracy on the validation set
+                if not i % 50:
+                    total = 0
+                    num_correct = 0
+                    for a, (context, label) in enumerate(validloader):
+                        if a+1 < valid_maxiter:
+                            context = context.to(device)
+                            label = label.to(device)
+                            yhat = model(context)
+                            yhat = yhat.view(-1,1)
+                            predictions = (yhat > 0.5)
+                            total += label.nelement()
+                            num_correct += torch.sum(torch.eq(predictions, label.byte())).item()
+                    accuracy = num_correct/total*100
+                    print('Validation Accuracy {}'.format(accuracy))
+        
+                print('Epoch: {}, Iteration: {}, loss: {} running loss: {}'.format(epoch,iteration, loss.item(), running_loss/train_maxiter))
+        
+            losses.append(loss.item())
+    
+    return
 if __name__ == "__main__":
     main()
