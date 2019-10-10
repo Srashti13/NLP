@@ -255,9 +255,6 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
         if type(model) == nn.Linear:
             torch.nn.init.uniform_(model.weight)
             
-
-    
-        
     #initalize model parameters and variables
     losses = []
     loss_function = nn.BCELoss() #binary cross entropy produced best results
@@ -279,7 +276,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     
     accuracy = 0
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(5): 
+    for epoch in range(3): 
         iteration = 0
         running_loss = 0.0 
         print('--- Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
