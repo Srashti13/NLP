@@ -1,0 +1,5 @@
+--- Start Program --- 0.0 seconds ---
+--- Text Extracted --- 2.17 seconds ---
+--- Grams Created --- 37.66 seconds ---
+Start Training --- 43.83 seconds ---
+--- Epoch: 1 | Current Validation Accuracy: 0 ---

@@ -2,9 +2,13 @@
 AIT726 HW 2 Due 10/10/2019
 Sentiment classificaiton using Naive Bayes and Logistic Regression on a dataset of 25000 training and 25000 testing tweets.
 Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
-Command to run the file: python HW1.py 
+Command to run the file: python HW2.py 
 i. main - runs all of the functions
-    ii. 
+    i. get_docs - tokenizes all tweets, returns a list of tokenized sentences and a list of all tokens
+    ii. get_ngrams_vector - creates the context and label numpy arrays from the tokenized sentences
+    iii. run_neural_network - splits numpy arrays into train,validation, and test sets. Runs on NN. Outputs accuracy on test set.
+
+
 """
 import os
 import re
@@ -37,8 +41,8 @@ def main():
     '''
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     docs, sentences = get_docs() 
-    ngram_array, ngram_label_array, vocab_size = get_ngrams_vector(docs,sentences,2) 
-    run_neural_network(ngram_array, ngram_label_array,vocab_size)
+    ngram_array, ngram_label_array, vocab_size = get_ngrams_vector(docs,sentences) 
+    run_neural_network(ngram_array, ngram_label_array, vocab_size)
     return
 
 
@@ -58,7 +62,12 @@ def get_docs():
 
     def tokenize(txt):
         """
-        Tokenizer that tokenizes text. Can also stem words.
+        Remove any markup tags, e.g., HTML
+    tags, from the data. Lower case capitalized words (i.e., starts with a capital letter) but not all
+    capital words (e.g., USA). Do not remove stopwords. Tokenize at white space and also at each
+    punctuation. Consider emoticons in this process. You can use an emoticon tokenizer, if you so
+    choose.
+        Tokenizer that tokenizes text. Also finds and tokenizes emoji faces.
         """
         txt = re.sub(r'\d+', '', txt) #remove numbers
         def lower_repl(match):
@@ -97,7 +106,7 @@ def get_docs():
     return docs, token_sentences 
 
 
-def get_ngrams_vector(docs, sentences, num_grams):
+def get_ngrams_vector(docs, sentences):
     '''
     Construct your n-grams: Create positive n-gram samples by collecting all pairs of adjacent
     tokens. Create 2 negative samples for each positive sample by keeping the first word the same
@@ -107,14 +116,13 @@ def get_ngrams_vector(docs, sentences, num_grams):
     This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
     --creates 2 fake grams for every real gram 
 
-    The number of grams (e.g., bigrams, trigams, etc.) can also be specified by 'num_grams'
     '''
     
     ## creating the ngrams from each sentence, so that ngrams from the end
     # of one sentence aren't combined with the beginning of another sentence
     ngram_list = []
     for sentence in sentences:
-        for gram in ngrams(sentence, num_grams):
+        for gram in ngrams(sentence, 2):
             ngram_list.append(gram)
     
     # dictionary with the key being the first term in the bigram and the values
@@ -164,9 +172,6 @@ def get_ngrams_vector(docs, sentences, num_grams):
     return ngram_array, ngram_label_array, len(vocab)
 
 
-
-
-
 def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     '''
     Create your training and test data: Split your generated samples into training and test sets
@@ -184,7 +189,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     provided.
     '''
     
-    BATCH_SIZE = 150 # 1000 maxes memory for 8GB GPU
+    BATCH_SIZE = 1 # 1000 maxes memory for 8GB GPU
 
     #randomly split into test and validation sets
     X_train, X_test, y_train, y_test = train_test_split(ngram_array, ngram_label_array, test_size=0.2, 
@@ -215,10 +220,10 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
     
     
-    
-    EMBEDDING_DIM = 25 #25 size embeddings
+    #edit as deisred
+    EMBEDDING_DIM = 25 # embeddings dimensions
     CONTEXT_SIZE = 2 #bigram model
-    HIDDEN_SIZE = 50 # nodes in hidden layer
+    HIDDEN_SIZE = 20 # nodes in hidden layer
 
     class NGramLanguageModeler(nn.Module):
         '''
@@ -229,7 +234,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
         Creates a Ngram based feedforward neural network with an embeddings layer, 1 hidden layer of 'hidden_size' units (20 in
         this case seemed to work best- changing to higher values had litte improvmeent), and a single output unit for 
         binary classification. Sigmoid activation function is used to obtain a percentage. Learning rate of .00001 was 
-        too low to effectively implement in a resonable amount of time. It is set to 0.01 for demonstration purposes. 
+        too low to effectively implement in a resonable amount of time. It is set to 0.001 for demonstration purposes. 
         '''
         def __init__(self, vocab_size, embedding_dim, context_size, batch_size, hidden_size):
             super(NGramLanguageModeler, self).__init__()
@@ -253,7 +258,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, BATCH_SIZE, HIDDEN_SIZE)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.01 to quickly converge -- change to 0.00001 if desired
+    optimizer = optim.SGD(model.parameters(), lr=0.001) #learning rate set to 0.01 to converse faster -- change to 0.00001 if desired
     yhat_list = []
     context_list = []
     labels = []
@@ -307,7 +312,10 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
                     predictions = (yhat > 0.5)
                     total += label.nelement()
                     num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
+            oldaccuracy = accuracy
             accuracy = num_correct/total*100
+        if accuracy < oldaccuracy: #if accuracy is lowering on the validation set its time to stop.
+            break
             # print('Validation Accuracy {}'.format(accuracy))
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
@@ -328,5 +336,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
         accuracy = num_correct/total*100
         print('Test Accuracy: {} %'.format(round(accuracy,5)))
     return
+
+    
 if __name__ == "__main__":
     main()

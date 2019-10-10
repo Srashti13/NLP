@@ -1,0 +1,10 @@
+--- Start Program --- 0.0 seconds ---
+--- Text Extracted --- 2.07 seconds ---
+--- Grams Created --- 36.13 seconds ---
+Start Training --- 42.15 seconds ---
+--- Epoch: 1 | Current Validation Accuracy: 0 ---
+--- Epoch: 2 | Current Validation Accuracy: 67.14943663130192 ---
+--- Epoch: 3 | Current Validation Accuracy: 67.51048605970887 ---
+--- Epoch: 4 | Current Validation Accuracy: 67.53104696109877 ---
+Training Complete --- 5107.86 seconds ---
+Test Accuracy: 67.23996 %
