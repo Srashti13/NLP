@@ -250,6 +250,14 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
             yhat = self.out_act(out3)
             return yhat
     
+    # randomly drawing values from a uniform distribution for weight initialization
+    def random_weights(model):
+        if type(model) == nn.Linear:
+            torch.nn.init.uniform_(model.weight)
+            
+
+    
+        
     #initalize model parameters and variables
     losses = []
     loss_function = nn.BCELoss() #binary cross entropy produced best results
@@ -257,6 +265,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     #loss_function = nn.MSELoss()
     model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, BATCH_SIZE, HIDDEN_SIZE)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
+    model.apply(random_weights)
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.001) #learning rate set to 0.01 to converse faster -- change to 0.00001 if desired
     yhat_list = []
