@@ -189,7 +189,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     provided.
     '''
     
-    BATCH_SIZE = 1 # 1000 maxes memory for 8GB GPU
+    BATCH_SIZE = 1 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, X_test, y_train, y_test = train_test_split(ngram_array, ngram_label_array, test_size=0.2, 
@@ -264,19 +264,20 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.apply(random_weights)
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.001) #learning rate set to 0.01 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.SGD(model.parameters(), lr=0.001) #learning rate set to 0.001 to converse faster -- change to 0.00001 if desired
     yhat_list = []
     context_list = []
     labels = []
     
     # setting these up because the neural network won't run if the batch size 
-    # is not the same for all instances due to matrix sizes not matching up
+    # is not the same for all instances due to matrix sizes not matching up -- keep batch size set to 1 unless don't care 
+    # about the entire testing dataset
     train_maxiter = X_train.size(0)//BATCH_SIZE
     valid_maxiter = X_valid.size(0)//BATCH_SIZE
     
     accuracy = 0
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(3): 
+    for epoch in range(1): 
         iteration = 0
         running_loss = 0.0 
         print('--- Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
