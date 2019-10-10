@@ -4,7 +4,7 @@ Sentiment classificaiton using Naive Bayes and Logistic Regression on a dataset 
 Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
 Command to run the file: python HW1.py 
 i. main - runs all of the functions
-    ii. get_trainandtest_vocabanddocs() - converts dataset into tokens (stemmed and unstemmed), creates megatraining document and extracts vocabulary
+    ii. 
 """
 import os
 import re
@@ -13,6 +13,7 @@ import numpy as np
 import itertools
 from nltk.util import ngrams
 from nltk import word_tokenize
+from nltk import sent_tokenize
 from collections import defaultdict
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
@@ -24,18 +25,19 @@ import torch.optim as optim
 import torch.nn as nn 
 
 
-#emoji regex
+#emoji regex -- used for emoji tokenization
 start_time = time.time()
 emoticon_string = r"(:\)|:-\)|:\(|:-\(|;\);-\)|:-O|8-|:P|:D|:\||:S|:\$|:@|8o\||\+o\(|\(H\)|\(C\)|\(\?\))"
 #https://www.regexpal.com/96995
 
 def main():
     '''
-    The main function 
+    The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
+    a number of grams, and input the vectors into the model for training and evaluation.
     '''
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
-    docs, sentences = get_docs()
-    ngram_array, ngram_label_array, vocab_size = get_ngrams_vector(docs,sentences,2)
+    docs, sentences = get_docs() 
+    ngram_array, ngram_label_array, vocab_size = get_ngrams_vector(docs,sentences,2) 
     run_neural_network(ngram_array, ngram_label_array,vocab_size)
     return
 
@@ -48,6 +50,10 @@ def get_docs():
     capital words (e.g., USA). Do not remove stopwords. Tokenize at white space and also at each
     punctuation. Consider emoticons in this process. You can use an emoticon tokenizer, if you so
     choose. If yes, specify which one. 
+
+    This function tokenizes and gets all of the text from the documents. it also divides the text into sentences 
+    and tokenizes each sentence. That way our model doesn't learn weird crossovers between the end of one sentence
+    to the start of another. 
     '''
 
     def tokenize(txt):
@@ -63,31 +69,32 @@ def get_docs():
         txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial
         tokens = re.split(emoticon_string,txt) #split based on emoji faces first 
         tokensfinal = []
-        for i in tokens:
+        for i in tokens: #after the emoji tokenizing is done, do basic word tokenizing with what is left
             if not re.match(emoticon_string,i):
                 to_add = word_tokenize(i)
                 tokensfinal = tokensfinal + to_add
             else:
                 tokensfinal.append(i)
-        # tokensfinal.insert(0, '_start_')
+        # tokensfinal.insert(0, '_start_') #for use if trying to actually make sentences
         # tokensfinal.append('_end_')
         return tokensfinal
 
-    #initalize train variables
+    #initalize variables
+    alltext = ''
     docs = []
     sentences = []
-    #create megadocument of all training tweets
+    #create megadocument of all tweets
     for f in os.listdir('LanguageModelingData'):
         tweet = open(os.path.join('LanguageModelingData',f),encoding="utf8").read()
-        token_tweets = tokenize(tweet)
-        docs.extend(token_tweets) 
-        sentences.append(token_tweets)
-
-    # print(docs)
-    print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))
-
-   
-    return docs, sentences 
+        alltext = alltext + ' ' + tweet #all tweet text joined
+    
+    sentences = sent_tokenize(alltext) #divide text into sentences
+    token_sentences = [tokenize(sentence) for sentence in sentences] #tokenize each sentence
+    #get all of the tokens in the tokenized sentences
+    for sentence in token_sentences:
+        docs.extend(sentence)
+    print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))   
+    return docs, token_sentences 
 
 
 def get_ngrams_vector(docs, sentences, num_grams):
@@ -96,13 +103,18 @@ def get_ngrams_vector(docs, sentences, num_grams):
     tokens. Create 2 negative samples for each positive sample by keeping the first word the same
     as the positive sample, but randomly sampling the rest of the corpus for the second word. The
     second word can be any word in the corpus except for the first word itself. 
+
+    This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
+    --creates 2 fake grams for every real gram 
+
+    The number of grams (e.g., bigrams, trigams, etc.) can also be specified by 'num_grams'
     '''
     
     ## creating the ngrams from each sentence, so that ngrams from the end
     # of one sentence aren't combined with the beginning of another sentence
     ngram_list = []
     for sentence in sentences:
-        for gram in ngrams(sentence, 2):
+        for gram in ngrams(sentence, num_grams):
             ngram_list.append(gram)
     
     # dictionary with the key being the first term in the bigram and the values
@@ -122,8 +134,7 @@ def get_ngrams_vector(docs, sentences, num_grams):
                 random_word = random.choice(docs)
             fakegrams.append((gram[0], random_word))
     
-
-
+    #assigning labels for both real and fake grams 
     gramvec, labels = [], [] 
     for element in ngram_list:
         gramvec.append([element[0],element[1]])
@@ -132,22 +143,22 @@ def get_ngrams_vector(docs, sentences, num_grams):
         gramvec.append([element[0],element[1]])
         labels.append([0])
 
-    
     vocab = set(docs) #set vocab as unique words
     word_to_ix = {word: i for i, word in enumerate(vocab)} #index vocabulary
     
-    ngramlabeled = [[gram] + label for gram, label in zip(gramvec,labels)]
+    ngramlabeled = [[gram] + label for gram, label in zip(gramvec,labels)] #put them together into a list of lists to be iterated
 
-    ngram_values = [] #array of word index for ngrams
+    ngram_values = [] #array of word index for ngrams 
     for context, label in ngramlabeled:
         ngram_values.append([word_to_ix[w] for w in context])
     
     ngram_labels = [] # list of labels for ngrams
     for context, label in ngramlabeled:
         ngram_labels.append([label])
-        
+    
+    #convert to numpy array for use in torch
     ngram_array = np.array(ngram_values)
-    ngram_label_array = np.array(ngram_labels) #convert to numpy array for use in torch
+    ngram_label_array = np.array(ngram_labels) 
     
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
     return ngram_array, ngram_label_array, len(vocab)
@@ -158,17 +169,30 @@ def get_ngrams_vector(docs, sentences, num_grams):
 
 def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     '''
-    put grams into embedding format and make test and train set for model
+    Create your training and test data: Split your generated samples into training and test sets
+    randomly. Keep 20% for testing. Use the rest for training.
+
+    Build and train a feed forward neural network: Build your FFNN with 2 layers (1 hidden layer and
+    1 output layer) with hidden vector size 20. Initialize the weights with random numbers.
+    Experiment with mean squared error and cross entropy as your loss function. Experiment with
+    different hidden vector sizes. Use sigmoid as the activation function and a learning rate of
+    0.00001. You must tune any parameters using cross-validation on the training data only. Once
+    you have finalized your system, you are ready to evaluate on test data.
+
+    This takes the input vectors and randomly splits it into a training, validation, and test set. Training is performed on 
+    feedforward neural net to create a langage model. This is validated and the results of the predictions on the test set is
+    provided.
     '''
     
     BATCH_SIZE = 150 # 1000 maxes memory for 8GB GPU
 
+    #randomly split into test and validation sets
     X_train, X_test, y_train, y_test = train_test_split(ngram_array, ngram_label_array, test_size=0.2, 
                                                        random_state=1234, shuffle=True, stratify=ngram_label_array)
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
                                                        random_state=1234, shuffle=True, stratify=y_train)
     
-    #set datatypes
+    #set datatypes 
     X_train = torch.from_numpy(X_train)
     X_train = X_train.long()
     y_train = torch.from_numpy(y_train)
@@ -182,7 +206,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     y_test = torch.from_numpy(y_test)
     y_test = y_test.float()
     
-    
+    #create datsets for loading into models
     train = data_utils.TensorDataset(X_train, y_train)
     valid = data_utils.TensorDataset(X_valid, y_valid)
     test = data_utils.TensorDataset(X_test, y_test)
@@ -197,7 +221,16 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     HIDDEN_SIZE = 50 # nodes in hidden layer
 
     class NGramLanguageModeler(nn.Module):
-    
+        '''
+        Build and train a feed forward neural network: Build your FFNN with 2 layers (1 hidden layer and
+        1 output layer) with hidden vector size 20. Initialize the weights with random numbers.
+        Experiment with mean squared error and cross entropy as your loss function.
+
+        Creates a Ngram based feedforward neural network with an embeddings layer, 1 hidden layer of 'hidden_size' units (20 in
+        this case seemed to work best- changing to higher values had litte improvmeent), and a single output unit for 
+        binary classification. Sigmoid activation function is used to obtain a percentage. Learning rate of .00001 was 
+        too low to effectively implement in a resonable amount of time. It is set to 0.01 for demonstration purposes. 
+        '''
         def __init__(self, vocab_size, embedding_dim, context_size, batch_size, hidden_size):
             super(NGramLanguageModeler, self).__init__()
             self.embeddings = nn.Embedding(vocab_size*batch_size, embedding_dim)
@@ -212,15 +245,15 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
             yhat = self.out_act(out3)
             return yhat
     
+    #initalize model parameters and variables
     losses = []
-    loss_function = nn.BCELoss()
+    loss_function = nn.BCELoss() #binary cross entropy produced best results
     # Experimenting with MSE Loss
     #loss_function = nn.MSELoss()
     model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, BATCH_SIZE, HIDDEN_SIZE)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
-
+    optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.01 to quickly converge -- change to 0.00001 if desired
     yhat_list = []
     context_list = []
     labels = []
@@ -232,7 +265,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     
     accuracy = 0
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(1):
+    for epoch in range(5): 
         iteration = 0
         running_loss = 0.0 
         print('--- Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
@@ -258,9 +291,9 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
                 iteration += 1
                 # Get the Python number from a 1-element Tensor by calling tensor.item()
                 running_loss += loss.item()
-                # print('Epoch: {}, Iteration: {}, loss: {} running loss: {}'.format(epoch,iteration, loss.item(), running_loss/train_maxiter))
-        
+                # print('Epoch: {}, Iteration: {}, loss: {} running loss: {}'.format(epoch,iteration, loss.item(), running_loss/train_maxiter))  
             losses.append(loss.item())
+
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
             total = 0
