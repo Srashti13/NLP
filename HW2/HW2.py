@@ -1,6 +1,6 @@
 """
 AIT726 HW 2 Due 10/10/2019
-Sentiment classificaiton using Naive Bayes and Logistic Regression on a dataset of 25000 training and 25000 testing tweets.
+Language modeling using bigrams and a feedforward net wfor 1000 reviews
 Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
 Command to run the file: python HW2.py 
 i. main - runs all of the functions
@@ -55,6 +55,7 @@ def get_docs():
     capital words (e.g., USA). Do not remove stopwords. Tokenize at white space and also at each
     punctuation. Consider emoticons in this process. You can use an emoticon tokenizer, if you so
     choose. If yes, specify which one. 
+
     This function tokenizes and gets all of the text from the documents. it also divides the text into sentences 
     and tokenizes each sentence. That way our model doesn't learn weird crossovers between the end of one sentence
     to the start of another. 
@@ -63,10 +64,10 @@ def get_docs():
     def tokenize(txt):
         """
         Remove any markup tags, e.g., HTML
-    tags, from the data. Lower case capitalized words (i.e., starts with a capital letter) but not all
-    capital words (e.g., USA). Do not remove stopwords. Tokenize at white space and also at each
-    punctuation. Consider emoticons in this process. You can use an emoticon tokenizer, if you so
-    choose.
+        tags, from the data. Lower case capitalized words (i.e., starts with a capital letter) but not all
+        capital words (e.g., USA). Do not remove stopwords. Tokenize at white space and also at each
+        punctuation. Consider emoticons in this process. You can use an emoticon tokenizer, if you so
+        choose.
         Tokenizer that tokenizes text. Also finds and tokenizes emoji faces.
         """
         txt = re.sub(r'\d+', '', txt) #remove numbers
@@ -112,6 +113,7 @@ def get_ngrams_vector(docs, sentences):
     tokens. Create 2 negative samples for each positive sample by keeping the first word the same
     as the positive sample, but randomly sampling the rest of the corpus for the second word. The
     second word can be any word in the corpus except for the first word itself. 
+    
     This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
     --creates 2 fake grams for every real gram 
     '''
