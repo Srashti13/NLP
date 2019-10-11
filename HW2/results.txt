@@ -1,10 +1,20 @@
 --- Start Program --- 0.0 seconds ---
---- Text Extracted --- 2.07 seconds ---
---- Grams Created --- 36.13 seconds ---
-Start Training --- 42.15 seconds ---
---- Epoch: 1 | Current Validation Accuracy: 0 ---
---- Epoch: 2 | Current Validation Accuracy: 67.14943663130192 ---
---- Epoch: 3 | Current Validation Accuracy: 67.51048605970887 ---
---- Epoch: 4 | Current Validation Accuracy: 67.53104696109877 ---
-Training Complete --- 5107.86 seconds ---
-Test Accuracy: 67.23996 %
+--- Text Extracted --- 2.15 seconds ---
+--- Grams Created --- 37.07 seconds ---
+Start Training --- 42.76 seconds ---
+--- Epoch: 1 | Validation Accuracy: 61.910009786908574 ---
+--- Epoch: 2 | Validation Accuracy: 66.62910906234836 ---
+--- Epoch: 3 | Validation Accuracy: 66.6636510925973 ---
+--- Epoch: 4 | Validation Accuracy: 66.6636510925973 ---
+--- Epoch: 5 | Validation Accuracy: 66.6636510925973 ---
+--- Epoch: 6 | Validation Accuracy: 66.66447352188895 ---
+--- Epoch: 7 | Validation Accuracy: 66.66447352188895 ---
+--- Epoch: 8 | Validation Accuracy: 66.6652959511806 ---
+--- Epoch: 9 | Validation Accuracy: 66.66611838047224 ---
+--- Epoch: 10 | Validation Accuracy: 66.66694080976389 ---
+--- Epoch: 11 | Validation Accuracy: 66.66694080976389 ---
+--- Epoch: 12 | Validation Accuracy: 66.66694080976389 ---
+--- Epoch: 13 | Validation Accuracy: 66.6636510925973 ---
+...Stopping Early...
+Training Complete --- 230.78 seconds ---
+Test Accuracy: 66.6625 %

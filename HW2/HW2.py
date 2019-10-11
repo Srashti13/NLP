@@ -19,6 +19,7 @@ from nltk import sent_tokenize
 from collections import defaultdict
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
+from statistics import mean
 import random
 import torch.utils.data as data_utils
 import torch
@@ -182,7 +183,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     provided.
     '''
     
-    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 100 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, X_test, y_train, y_test = train_test_split(ngram_array, ngram_label_array, test_size=0.2, 
@@ -228,7 +229,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
         binary classification. Sigmoid activation function is used to obtain a percentage. Learning rate of .00001 was 
         too low to effectively implement in a resonable amount of time. It is set to 0.001 for demonstration purposes. 
         '''
-        def __init__(self, vocab_size, embedding_dim, context_size, batch_size, hidden_size):
+        def __init__(self, vocab_size, embedding_dim, context_size, hidden_size):
             super(NGramLanguageModeler, self).__init__()
             self.embeddings = nn.Embedding(vocab_size, embedding_dim)
             self.linear1 = nn.Linear(context_size * embedding_dim, hidden_size)
@@ -236,7 +237,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
             self.out_act = nn.Sigmoid()
     
         def forward(self, inputs, context_size, embedding_dim):
-            embeds = self.embeddings(inputs).view((-1, context_size*embedding_dim))
+            embeds = self.embeddings(inputs).view((-1, context_size*embedding_dim)) #required dimensions for batching 
             out1 = self.linear1(embeds)
             out3 = self.linear2(out1)
             yhat = self.out_act(out3)
@@ -253,7 +254,7 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     loss_function = nn.BCELoss() #binary cross entropy produced best results
     # Experimenting with MSE Loss
     #loss_function = nn.MSELoss()
-    model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, BATCH_SIZE, HIDDEN_SIZE)
+    model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.apply(random_weights)
     model.to(device)
@@ -262,20 +263,19 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     context_list = []
     labels = []
     
-    
-    accuracy = 0
+    accuracy_list = []
+    best_accuracy = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(1): 
+    for epoch in range(50): 
         iteration = 0
         running_loss = 0.0 
-        print('--- Starting Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
         for i, (context, label) in enumerate(trainloader):
             # zero out the gradients from the old instance
             optimizer.zero_grad()
             # Run the forward pass and get predicted output
             context = context.to(device)
             label = label.to(device)
-            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM) #required dimensions for batching
             yhat = yhat.view(-1,1)
             yhat_list.append(yhat)
             context_list.append(context)
@@ -304,15 +304,21 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
                 predictions = (yhat > 0.5)
                 total += label.nelement()
                 num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
-            oldaccuracy = accuracy
-            accuracy = num_correct/total*100
-        print('--- Finished Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
-        if accuracy < oldaccuracy: #if accuracy is lowering on the validation set its time to stop.
-            break
-            # print('Validation Accuracy {}'.format(accuracy))
+            accuracy_list.append(num_correct/total*100) #add accuracy to running epoch list 
+        print('--- Epoch: {} | Validation Accuracy: {} ---'.format(epoch+1, accuracy_list[-1])) 
+
+        if accuracy_list[-1] > best_accuracy: #if accuracy is lowering on the validation set its time to stop.
+            best_accuracy = accuracy_list[-1]
+            bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
+        #early stopping condition
+        if epoch+1 >= 5: #start looking to stop after 20 epochs
+            if accuracy_list[-1] < min(accuracy_list[-5:-1]): #if accuracy lower than lowest of last 4 values
+                print('...Stopping Early...')
+                break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
     # Get the accuracy on the test set after training complete
+    model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
     with torch.no_grad():
         total = 0
         num_correct = 0
