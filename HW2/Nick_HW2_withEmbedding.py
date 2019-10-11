@@ -32,15 +32,20 @@ start_time = time.time()
 emoticon_string = r"(:\)|:-\)|:\(|:-\(|;\);-\)|:-O|8-|:P|:D|:\||:S|:\$|:@|8o\||\+o\(|\(H\)|\(C\)|\(\?\))"
 #https://www.regexpal.com/96995
 
-def main():
+def main(pretrained=True):
     '''
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     docs, sentences = get_docs() 
-    ngram_array, ngram_label_array, vocab_size = get_ngrams_vector(docs,sentences) 
-    run_neural_network(ngram_array, ngram_label_array, vocab_size)
+    ngram_array, ngram_label_array, vocab_size, vocab = get_ngrams_vector(docs,sentences) 
+    
+    
+    if pretrained == True:
+        embedding_NN(ngram_array, ngram_label_array, vocab_size, vocab)
+    else:
+       run_neural_network(ngram_array, ngram_label_array, vocab_size)
     return
 
 
@@ -164,8 +169,175 @@ def get_ngrams_vector(docs, sentences):
     ngram_label_array = np.array(ngram_labels) 
     
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return ngram_array, ngram_label_array, len(vocab)
+    return ngram_array, ngram_label_array, len(vocab), vocab
 
+def embedding_NN(ngram_array, ngram_label_array, vocab_size, vocab):
+    
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+
+    #randomly split into test and validation sets
+    X_train, X_test, y_train, y_test = train_test_split(ngram_array, ngram_label_array, test_size=0.2, 
+                                                       random_state=1234, shuffle=True, stratify=ngram_label_array)
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+                                                       random_state=1234, shuffle=True, stratify=y_train)
+    
+    #set datatypes 
+    X_train = torch.from_numpy(X_train)
+    X_train = X_train.long()
+    y_train = torch.from_numpy(y_train)
+    y_train = y_train.float()
+    X_valid = torch.from_numpy(X_valid)
+    X_valid = X_valid.long()
+    y_valid = torch.from_numpy(y_valid)
+    y_valid = y_valid.float()
+    X_test = torch.from_numpy(X_test)
+    X_test = X_test.long()
+    y_test = torch.from_numpy(y_test)
+    y_test = y_test.float()
+    
+    #create datsets for loading into models
+    train = data_utils.TensorDataset(X_train, y_train)
+    valid = data_utils.TensorDataset(X_valid, y_valid)
+    test = data_utils.TensorDataset(X_test, y_test)
+    trainloader = data_utils.DataLoader(train, batch_size=BATCH_SIZE, shuffle=False)
+    validloader = data_utils.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False)
+    testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
+    
+    
+    #edit as deisred
+    EMBEDDING_DIM = 200 # embeddings dimensions
+    CONTEXT_SIZE = 2 #bigram model
+    
+    # getting embeddings from the file
+    EMBEDDING_FILE = "glove.6B.200d.txt"
+    embeddings_index = {}
+    words = []
+    with open (EMBEDDING_FILE, encoding="utf8") as f:
+        for line in f:
+            values = line.split()
+            word = values[0]
+            words.append(word)
+            embedding = np.asarray(values[1:], dtype='float32')
+            embeddings_index[word] = embedding
+
+    matrix_len = len(vocab)
+    weights_matrix = np.zeros((matrix_len, 200)) # 200 is depth of embedding matrix
+    words_found = 0
+    words_not_found = 0
+    for i, word in enumerate(vocab):
+        try:
+            weights_matrix[i] = embeddings_index[word]
+            words_found += 1
+        
+        except KeyError:
+            weights_matrix[i] = np.random.normal(scale=0.6, size=(200,))
+            words_not_found += 1
+    
+    print("{:.2f}% ({}/{}) of the words were in the embedding.".format(words_found/len(vocab),words_found,len(vocab)))
+    
+    weights_matrix_torch = torch.from_numpy(weights_matrix)
+    
+    def create_emb_layer(weights_matrix, non_trainable=False):
+        num_embeddings, embedding_dim = weights_matrix.size()
+        emb_layer = nn.Embedding(num_embeddings, embedding_dim)
+        emb_layer.load_state_dict({'weight':weights_matrix})
+        if non_trainable:
+            emb_layer.weight.requires_grad = False
+        return emb_layer, num_embeddings, embedding_dim
+    
+    class NGramLanguageModeler(nn.Module):
+        def __init__(self, weights_matrix, context_size,batch_size):
+            super(NGramLanguageModeler, self).__init__()
+            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
+            self.linear1 = nn.Linear(embedding_dim*context_size, 1)
+            self.out_act = nn.Sigmoid()
+            
+        def forward(self, inputs, context_size, embedding_dim):
+            embeds = self.embedding(inputs).view((-1, context_size*embedding_dim))
+            out1 = self.linear1(embeds)
+            yhat = self.out_act(out1)
+            return yhat 
+
+    #initalize model parameters and variables
+    losses = []
+    loss_function = nn.BCELoss() #binary cross entropy produced best results
+    # Experimenting with MSE Loss
+    #loss_function = nn.MSELoss()
+    model = NGramLanguageModeler(weights_matrix_torch, CONTEXT_SIZE, BATCH_SIZE)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
+    # The random weight method isn't as effective as the default pytorch method
+    #model.apply(random_weights)
+    model.to(device)
+    optimizer = optim.SGD(model.parameters(), lr=0.001) #learning rate set to 0.001 to converse faster -- change to 0.00001 if desired
+    yhat_list = []
+    context_list = []
+    labels = []
+
+
+    accuracy = 0
+    print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
+    for epoch in range(10): 
+        iteration = 0
+        running_loss = 0.0 
+        print('--- Starting Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
+        for i, (context, label) in enumerate(trainloader):
+            # zero out the gradients from the old instance
+            optimizer.zero_grad()
+            # Run the forward pass and get predicted output
+            context = context.to(device)
+            label = label.to(device)
+            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+            yhat = yhat.view(-1,1)
+            yhat_list.append(yhat)
+            context_list.append(context)
+
+            # Compute Binary Cross-Entropy
+            labels.append(label)
+            loss = loss_function(yhat, label)
+    
+            # Step 5. Do the backward pass and update the gradient
+            loss.backward()
+            optimizer.step()
+            iteration += 1
+            # Get the Python number from a 1-element Tensor by calling tensor.item()
+            running_loss += loss.item()
+        losses.append(loss.item())
+
+    # Get the accuracy on the validation set for each epoch
+        with torch.no_grad():
+            total = 0
+            num_correct = 0
+            for a, (context, label) in enumerate(validloader):
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = yhat.view(-1,1)
+                predictions = (yhat > 0.5)
+                total += label.nelement()
+                num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
+            oldaccuracy = accuracy
+            accuracy = num_correct/total*100
+        print('--- Finished Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
+        if accuracy < oldaccuracy: #if accuracy is lowering on the validation set its time to stop.
+            break
+            # print('Validation Accuracy {}'.format(accuracy))
+
+    print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
+    # Get the accuracy on the test set after training complete
+    with torch.no_grad():
+        total = 0
+        num_correct = 0
+        for a, (context, label) in enumerate(testloader):
+            context = context.to(device)
+            label = label.to(device)
+            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+            yhat = yhat.view(-1,1)
+            predictions = (yhat > 0.5)
+            total += label.nelement()
+            num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
+        accuracy = num_correct/total*100
+        print('Test Accuracy: {} %'.format(round(accuracy,5)))
+    return
 
 def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     '''
