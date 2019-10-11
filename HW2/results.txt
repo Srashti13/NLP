@@ -1,20 +1,110 @@
 --- Start Program --- 0.0 seconds ---
---- Text Extracted --- 2.15 seconds ---
---- Grams Created --- 37.07 seconds ---
-Start Training --- 42.76 seconds ---
---- Epoch: 1 | Validation Accuracy: 61.910009786908574 ---
---- Epoch: 2 | Validation Accuracy: 66.62910906234836 ---
---- Epoch: 3 | Validation Accuracy: 66.6636510925973 ---
---- Epoch: 4 | Validation Accuracy: 66.6636510925973 ---
---- Epoch: 5 | Validation Accuracy: 66.6636510925973 ---
---- Epoch: 6 | Validation Accuracy: 66.66447352188895 ---
---- Epoch: 7 | Validation Accuracy: 66.66447352188895 ---
---- Epoch: 8 | Validation Accuracy: 66.6652959511806 ---
---- Epoch: 9 | Validation Accuracy: 66.66611838047224 ---
---- Epoch: 10 | Validation Accuracy: 66.66694080976389 ---
---- Epoch: 11 | Validation Accuracy: 66.66694080976389 ---
---- Epoch: 12 | Validation Accuracy: 66.66694080976389 ---
---- Epoch: 13 | Validation Accuracy: 66.6636510925973 ---
-...Stopping Early...
-Training Complete --- 230.78 seconds ---
-Test Accuracy: 66.6625 %
+--- Text Extracted --- 2.27 seconds ---
+--- Grams Created --- 36.97 seconds ---
+Start Training --- 42.64 seconds ---
+--- Epoch: 1 | Validation Accuracy: 49.67061706869752 ---
+--- Epoch: 2 | Validation Accuracy: 53.5442590323297 ---
+--- Epoch: 3 | Validation Accuracy: 55.43666883239714 ---
+--- Epoch: 4 | Validation Accuracy: 57.54948968262453 ---
+--- Epoch: 5 | Validation Accuracy: 59.22806786686514 ---
+--- Epoch: 6 | Validation Accuracy: 60.38111373374674 ---
+--- Epoch: 7 | Validation Accuracy: 61.567056772294 ---
+--- Epoch: 8 | Validation Accuracy: 62.724214785633805 ---
+--- Epoch: 9 | Validation Accuracy: 63.646980450855736 ---
+--- Epoch: 10 | Validation Accuracy: 64.52780222220395 ---
+--- Epoch: 11 | Validation Accuracy: 65.19643723630861 ---
+--- Epoch: 12 | Validation Accuracy: 65.61258645787929 ---
+--- Epoch: 13 | Validation Accuracy: 66.03284782590816 ---
+--- Epoch: 14 | Validation Accuracy: 66.29849248710842 ---
+--- Epoch: 15 | Validation Accuracy: 66.51479139081017 ---
+--- Epoch: 16 | Validation Accuracy: 66.63897821384806 ---
+--- Epoch: 17 | Validation Accuracy: 66.78290333988535 ---
+--- Epoch: 18 | Validation Accuracy: 66.8412958195919 ---
+--- Epoch: 19 | Validation Accuracy: 66.86843598621608 ---
+--- Epoch: 20 | Validation Accuracy: 66.8963985821319 ---
+--- Epoch: 21 | Validation Accuracy: 66.91778174371458 ---
+--- Epoch: 22 | Validation Accuracy: 66.98275365775427 ---
+--- Epoch: 23 | Validation Accuracy: 66.99837981429546 ---
+--- Epoch: 24 | Validation Accuracy: 67.01153868296174 ---
+--- Epoch: 25 | Validation Accuracy: 67.04196856675247 ---
+--- Epoch: 26 | Validation Accuracy: 67.06252929904352 ---
+--- Epoch: 27 | Validation Accuracy: 67.06664144550172 ---
+--- Epoch: 28 | Validation Accuracy: 67.05019285966888 ---
+--- Epoch: 29 | Validation Accuracy: 67.06664144550172 ---
+--- Epoch: 30 | Validation Accuracy: 67.068286304085 ---
+--- Epoch: 31 | Validation Accuracy: 67.06581901621009 ---
+--- Epoch: 32 | Validation Accuracy: 67.0740433091265 ---
+--- Epoch: 33 | Validation Accuracy: 67.0699311626683 ---
+--- Epoch: 34 | Validation Accuracy: 67.08144517275127 ---
+--- Epoch: 35 | Validation Accuracy: 67.08144517275127 ---
+--- Epoch: 36 | Validation Accuracy: 67.07568816770979 ---
+--- Epoch: 37 | Validation Accuracy: 67.08309003133456 ---
+--- Epoch: 38 | Validation Accuracy: 67.08555731920947 ---
+--- Epoch: 39 | Validation Accuracy: 67.09624890000082 ---
+--- Epoch: 40 | Validation Accuracy: 67.09953861716738 ---
+--- Epoch: 41 | Validation Accuracy: 67.1135199151253 ---
+--- Epoch: 42 | Validation Accuracy: 67.10858533937545 ---
+--- Epoch: 43 | Validation Accuracy: 67.1135199151253 ---
+--- Epoch: 44 | Validation Accuracy: 67.1192769201668 ---
+--- Epoch: 45 | Validation Accuracy: 67.12092177875007 ---
+--- Epoch: 46 | Validation Accuracy: 67.12832364237484 ---
+--- Epoch: 47 | Validation Accuracy: 67.1316133595414 ---
+--- Epoch: 48 | Validation Accuracy: 67.13079093024977 ---
+--- Epoch: 49 | Validation Accuracy: 67.14066008174947 ---
+--- Epoch: 50 | Validation Accuracy: 67.15052923324917 ---
+Training Complete --- 757.19 seconds ---
+Test Accuracy: 67.09674 %
+0.80% (15163/18872) of the vocabulary were in the pre-trained embedding.
+Start Training (Pre-Trained Embeddings) --- 784.53 seconds ---
+--- Epoch: 1 | Validation Accuracy: 61.249599065720325 ---
+--- Epoch: 2 | Validation Accuracy: 64.08204554613417 ---
+--- Epoch: 3 | Validation Accuracy: 64.83456834798628 ---
+--- Epoch: 4 | Validation Accuracy: 65.16436249393458 ---
+--- Epoch: 5 | Validation Accuracy: 65.30417547351365 ---
+--- Epoch: 6 | Validation Accuracy: 65.3798389683447 ---
+--- Epoch: 7 | Validation Accuracy: 65.43576416017632 ---
+--- Epoch: 8 | Validation Accuracy: 65.44974545813423 ---
+--- Epoch: 9 | Validation Accuracy: 65.45632489246736 ---
+--- Epoch: 10 | Validation Accuracy: 65.48428748838319 ---
+--- Epoch: 11 | Validation Accuracy: 65.47853048334169 ---
+--- Epoch: 12 | Validation Accuracy: 65.49909121563273 ---
+--- Epoch: 13 | Validation Accuracy: 65.49580149846616 ---
+--- Epoch: 14 | Validation Accuracy: 65.50155850350767 ---
+--- Epoch: 15 | Validation Accuracy: 65.50155850350767 ---
+--- Epoch: 16 | Validation Accuracy: 65.52540895296526 ---
+--- Epoch: 17 | Validation Accuracy: 65.55008183171451 ---
+--- Epoch: 18 | Validation Accuracy: 65.55583883675601 ---
+--- Epoch: 19 | Validation Accuracy: 65.56406312967242 ---
+--- Epoch: 20 | Validation Accuracy: 65.57310985188049 ---
+--- Epoch: 21 | Validation Accuracy: 65.57475471046376 ---
+--- Epoch: 22 | Validation Accuracy: 65.58626872054674 ---
+--- Epoch: 23 | Validation Accuracy: 65.58873600842168 ---
+--- Epoch: 24 | Validation Accuracy: 65.60929674071272 ---
+--- Epoch: 25 | Validation Accuracy: 65.61998832150407 ---
+--- Epoch: 26 | Validation Accuracy: 65.63232476087867 ---
+--- Epoch: 27 | Validation Accuracy: 65.63314719017032 ---
+--- Epoch: 28 | Validation Accuracy: 65.63972662450345 ---
+--- Epoch: 29 | Validation Accuracy: 65.63643690733689 ---
+--- Epoch: 30 | Validation Accuracy: 65.64219391237839 ---
+--- Epoch: 31 | Validation Accuracy: 65.65864249821122 ---
+--- Epoch: 32 | Validation Accuracy: 65.65617521033629 ---
+--- Epoch: 33 | Validation Accuracy: 65.65699763962793 ---
+--- Epoch: 34 | Validation Accuracy: 65.68084808908554 ---
+--- Epoch: 35 | Validation Accuracy: 65.68167051837717 ---
+--- Epoch: 36 | Validation Accuracy: 65.68907238200195 ---
+--- Epoch: 37 | Validation Accuracy: 65.70058639208494 ---
+--- Epoch: 38 | Validation Accuracy: 65.69811910421002 ---
+--- Epoch: 39 | Validation Accuracy: 65.709633114293 ---
+--- Epoch: 40 | Validation Accuracy: 65.71703497791778 ---
+--- Epoch: 41 | Validation Accuracy: 65.71292283145957 ---
+--- Epoch: 42 | Validation Accuracy: 65.7153901193345 ---
+--- Epoch: 43 | Validation Accuracy: 65.72690412941748 ---
+--- Epoch: 44 | Validation Accuracy: 65.73430599304226 ---
+--- Epoch: 45 | Validation Accuracy: 65.74088542737539 ---
+--- Epoch: 46 | Validation Accuracy: 65.74746486170852 ---
+--- Epoch: 47 | Validation Accuracy: 65.75651158391658 ---
+--- Epoch: 48 | Validation Accuracy: 65.76555830612463 ---
+--- Epoch: 49 | Validation Accuracy: 65.76309101824971 ---
+--- Epoch: 50 | Validation Accuracy: 65.76144615966642 ---
+Training Complete --- 1081.11 seconds ---
+Test Accuracy: 65.78217 %
