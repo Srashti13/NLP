@@ -7,8 +7,6 @@ i. main - runs all of the functions
     i. get_docs - tokenizes all tweets, returns a list of tokenized sentences and a list of all tokens
     ii. get_ngrams_vector - creates the context and label numpy arrays from the tokenized sentences
     iii. run_neural_network - splits numpy arrays into train,validation, and test sets. Runs on NN. Outputs accuracy on test set.
-
-
 """
 import os
 import re
@@ -54,7 +52,6 @@ def get_docs():
     capital words (e.g., USA). Do not remove stopwords. Tokenize at white space and also at each
     punctuation. Consider emoticons in this process. You can use an emoticon tokenizer, if you so
     choose. If yes, specify which one. 
-
     This function tokenizes and gets all of the text from the documents. it also divides the text into sentences 
     and tokenizes each sentence. That way our model doesn't learn weird crossovers between the end of one sentence
     to the start of another. 
@@ -112,10 +109,8 @@ def get_ngrams_vector(docs, sentences):
     tokens. Create 2 negative samples for each positive sample by keeping the first word the same
     as the positive sample, but randomly sampling the rest of the corpus for the second word. The
     second word can be any word in the corpus except for the first word itself. 
-
     This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
     --creates 2 fake grams for every real gram 
-
     '''
     
     ## creating the ngrams from each sentence, so that ngrams from the end
@@ -176,20 +171,18 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     '''
     Create your training and test data: Split your generated samples into training and test sets
     randomly. Keep 20% for testing. Use the rest for training.
-
     Build and train a feed forward neural network: Build your FFNN with 2 layers (1 hidden layer and
     1 output layer) with hidden vector size 20. Initialize the weights with random numbers.
     Experiment with mean squared error and cross entropy as your loss function. Experiment with
     different hidden vector sizes. Use sigmoid as the activation function and a learning rate of
     0.00001. You must tune any parameters using cross-validation on the training data only. Once
     you have finalized your system, you are ready to evaluate on test data.
-
     This takes the input vectors and randomly splits it into a training, validation, and test set. Training is performed on 
     feedforward neural net to create a langage model. This is validated and the results of the predictions on the test set is
     provided.
     '''
     
-    BATCH_SIZE = 1 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, X_test, y_train, y_test = train_test_split(ngram_array, ngram_label_array, test_size=0.2, 
@@ -230,7 +223,6 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
         Build and train a feed forward neural network: Build your FFNN with 2 layers (1 hidden layer and
         1 output layer) with hidden vector size 20. Initialize the weights with random numbers.
         Experiment with mean squared error and cross entropy as your loss function.
-
         Creates a Ngram based feedforward neural network with an embeddings layer, 1 hidden layer of 'hidden_size' units (20 in
         this case seemed to work best- changing to higher values had litte improvmeent), and a single output unit for 
         binary classification. Sigmoid activation function is used to obtain a percentage. Learning rate of .00001 was 
@@ -238,17 +230,18 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
         '''
         def __init__(self, vocab_size, embedding_dim, context_size, batch_size, hidden_size):
             super(NGramLanguageModeler, self).__init__()
-            self.embeddings = nn.Embedding(vocab_size*batch_size, embedding_dim)
-            self.linear1 = nn.Linear(context_size * embedding_dim*batch_size, hidden_size)
-            self.linear2 = nn.Linear(hidden_size, batch_size)
+            self.embeddings = nn.Embedding(vocab_size, embedding_dim)
+            self.linear1 = nn.Linear(context_size * embedding_dim, hidden_size)
+            self.linear2 = nn.Linear(hidden_size, 1)
             self.out_act = nn.Sigmoid()
     
-        def forward(self, inputs):
-            embeds = self.embeddings(inputs).view((1, -1))
+        def forward(self, inputs, context_size, embedding_dim):
+            embeds = self.embeddings(inputs).view((-1, context_size*embedding_dim))
             out1 = self.linear1(embeds)
             out3 = self.linear2(out1)
             yhat = self.out_act(out3)
             return yhat
+
     
     # randomly drawing values from a uniform distribution for weight initialization
     def random_weights(model):
@@ -269,58 +262,51 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     context_list = []
     labels = []
     
-    # setting these up because the neural network won't run if the batch size 
-    # is not the same for all instances due to matrix sizes not matching up -- keep batch size set to 1 unless don't care 
-    # about the entire testing dataset
-    train_maxiter = X_train.size(0)//BATCH_SIZE
-    valid_maxiter = X_valid.size(0)//BATCH_SIZE
     
     accuracy = 0
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
     for epoch in range(1): 
         iteration = 0
         running_loss = 0.0 
-        print('--- Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
+        print('--- Starting Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
         for i, (context, label) in enumerate(trainloader):
-            if i+1 < train_maxiter:
-                # zero out the gradients from the old instance
-                optimizer.zero_grad()
-                # Run the forward pass and get predicted output
-                context = context.to(device)
-                label = label.to(device)
-                yhat = model.forward(context)
-                yhat = yhat.view(-1,1)
-                yhat_list.append(yhat)
-                context_list.append(context)
+            # zero out the gradients from the old instance
+            optimizer.zero_grad()
+            # Run the forward pass and get predicted output
+            context = context.to(device)
+            label = label.to(device)
+            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+            yhat = yhat.view(-1,1)
+            yhat_list.append(yhat)
+            context_list.append(context)
 
-                # Compute Binary Cross-Entropy
-                labels.append(label)
-                loss = loss_function(yhat, label)
-        
-                # Step 5. Do the backward pass and update the gradient
-                loss.backward()
-                optimizer.step()
-                iteration += 1
-                # Get the Python number from a 1-element Tensor by calling tensor.item()
-                running_loss += loss.item()
-                # print('Epoch: {}, Iteration: {}, loss: {} running loss: {}'.format(epoch,iteration, loss.item(), running_loss/train_maxiter))  
-            losses.append(loss.item())
+            # Compute Binary Cross-Entropy
+            labels.append(label)
+            loss = loss_function(yhat, label)
+    
+            # Step 5. Do the backward pass and update the gradient
+            loss.backward()
+            optimizer.step()
+            iteration += 1
+            # Get the Python number from a 1-element Tensor by calling tensor.item()
+            running_loss += loss.item()
+        losses.append(loss.item())
 
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
             total = 0
             num_correct = 0
             for a, (context, label) in enumerate(validloader):
-                if a+1 < valid_maxiter:
-                    context = context.to(device)
-                    label = label.to(device)
-                    yhat = model.forward(context)
-                    yhat = yhat.view(-1,1)
-                    predictions = (yhat > 0.5)
-                    total += label.nelement()
-                    num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = yhat.view(-1,1)
+                predictions = (yhat > 0.5)
+                total += label.nelement()
+                num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
             oldaccuracy = accuracy
             accuracy = num_correct/total*100
+        print('--- Finished Epoch: {} | Current Validation Accuracy: {} ---'.format(epoch+1, accuracy)) 
         if accuracy < oldaccuracy: #if accuracy is lowering on the validation set its time to stop.
             break
             # print('Validation Accuracy {}'.format(accuracy))
@@ -328,18 +314,16 @@ def run_neural_network(ngram_array, ngram_label_array, vocab_size):
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
     # Get the accuracy on the test set after training complete
     with torch.no_grad():
-        test_maxiter = X_test.size(0)//BATCH_SIZE
         total = 0
         num_correct = 0
         for a, (context, label) in enumerate(testloader):
-            if a+1 < test_maxiter:
-                context = context.to(device)
-                label = label.to(device)
-                yhat = model.forward(context)
-                yhat = yhat.view(-1,1)
-                predictions = (yhat > 0.5)
-                total += label.nelement()
-                num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
+            context = context.to(device)
+            label = label.to(device)
+            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+            yhat = yhat.view(-1,1)
+            predictions = (yhat > 0.5)
+            total += label.nelement()
+            num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
         accuracy = num_correct/total*100
         print('Test Accuracy: {} %'.format(round(accuracy,5)))
     return
