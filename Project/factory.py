@@ -21,6 +21,7 @@ from nltk import sent_tokenize
 from collections import defaultdict
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score
 from statistics import mean
 import random
 import torch.utils.data as data_utils
@@ -41,7 +42,7 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    train_size = 110000
+    train_size = 1306112#1306112
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, questions, labels = get_docs(train_size) 
     context_array, context_label_array, ids, totalpadlength = get_context_vector(vocab, questions, labels) 
@@ -112,14 +113,13 @@ def get_docs(train_size):
         line_count = 0
         rownum = 0
         for row in csv_reader:
-            if line_count < 5000 and rownum > 0:#skip header row
+            if line_count < 375806 and rownum > 0:#skip header row 375806
                 questions[row[0]] = tokenize(row[1])
                 labels[row[0]] = int(0) #doesn't matter really... 
                 line_count += 1
             rownum +=1
     
     
-    print()
     vocab = list(set([item for sublist in questions.values() for item in sublist]))
 
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))   
@@ -177,12 +177,12 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     provided.
     '''
     
-    BATCH_SIZE = 100 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 50 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
-    X_train, y_train = context_array[:(train_size+1)][:], context_label_array[:(train_size+1)][:]
+    X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
 
-    X_test, y_test = context_array[train_size:][:], context_label_array[train_size:][:]
+    X_test, y_test = context_array[(train_size):][:], context_label_array[(train_size):][:]
 
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
                                                        random_state=1234, shuffle=True, stratify=y_train)
@@ -254,13 +254,13 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.apply(random_weights)
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.0001) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
     yhat_list = []
     context_list = []
     labels = []
     
-    accuracy_list = []
-    best_accuracy = 0 
+    f1_list = []
+    best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
     for epoch in range(50): 
         iteration = 0
@@ -286,38 +286,45 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
             iteration += 1
             # Get the Python number from a 1-element Tensor by calling tensor.item()
             running_loss += loss.item()
+            del context
+            del label
         losses.append(loss.item())
 
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
             total = 0
             num_correct = 0
+            predictionsfull = []
+            labelsfull = []
             for a, (context, label) in enumerate(validloader):
                 context = context.to(device)
                 label = label.to(device)
                 yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
-                yhat = yhat.view(-1,1)
                 predictions = (yhat > 0.5)
                 total += label.nelement()
-                num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
-            accuracy_list.append(num_correct/total*100) #add accuracy to running epoch list 
-        print('--- Epoch: {} | Validation Accuracy: {} ---'.format(epoch+1, accuracy_list[-1])) 
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
 
-        if accuracy_list[-1] > best_accuracy: #save if it improves validation accuracy 
-            best_accuracy = accuracy_list[-1]
+        if f1_list[-1] > best_f1: #save if it improves validation accuracy 
+            best_f1 = f1_list[-1]
             bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
         #early stopping condition
         if epoch+1 >= 5: #start looking to stop after this many epochs
-            if accuracy_list[-1] < min(accuracy_list[-5:-1]): #if accuracy lower than lowest of last 4 values
+            if f1_list[-1] < min(f1_list[-5:-1]): #if accuracy lower than lowest of last 4 values
                 print('...Stopping Early...')
                 break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
-    # Get the accuracy on the test set after training complete
+    # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
     model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
     with torch.no_grad():
         total = 0
         num_correct = 0
+        predictionsfull = []
+        labelsfull = []
         for a, (context, label) in enumerate(testloader):
             context = context.to(device)
             label = label.to(device)
@@ -325,9 +332,10 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
             yhat = yhat.view(-1,1)
             predictions = (yhat > 0.5)
             total += label.nelement()
-            num_correct += torch.sum(torch.eq(predictions, label.bool())).item()
-        accuracy = num_correct/total*100
-        print('Test Accuracy: {} %'.format(round(accuracy,5)))
+            predictionsfull.extend(predictions.int().tolist())
+            labelsfull.extend(label.int().tolist())
+        f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+        print('Test F1: {} %'.format(round(f1score,5)))
     return
 
 
