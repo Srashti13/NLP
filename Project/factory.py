@@ -29,7 +29,8 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn 
-
+import gc #garbage collector for gpu memory 
+from GPUtil import showUtilization as gpu_usage
 
 
 #emoji regex -- used for emoji tokenization
@@ -152,7 +153,7 @@ def get_context_vector(vocab, questions, labels):
     for entry in questions.keys():
         ids.append(entry)
     
-    #convert to numpy array for use in torch  -- padding with index 0 for padding....
+    #convert to numpy array for use in torch  -- padding with index 0 for padding.... Should change to a random word...
     totalpadlength = max(map(len, context_values))
     context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in context_values]) #needed because without badding we are lost 
     context_label_array = np.array(context_labels) 
@@ -250,14 +251,13 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     loss_function = nn.BCELoss() #binary cross entropy produced best results
     # Experimenting with MSE Loss
     #loss_function = nn.MSELoss()
-    model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE)
+    model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE) #.to_fp16() for memory
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.apply(random_weights)
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
-    yhat_list = []
-    context_list = []
-    labels = []
+    torch.backends.cudnn.benchmark = True #memory
+    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     f1_list = []
     best_f1 = 0 
@@ -273,27 +273,24 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
             label = label.to(device)
             yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM) #required dimensions for batching
             yhat = yhat.view(-1,1)
-            yhat_list.append(yhat)
-            context_list.append(context)
-
             # Compute Binary Cross-Entropy
-            labels.append(label)
             loss = loss_function(yhat, label)
-    
-            # Step 5. Do the backward pass and update the gradient
+            #clear memory 
+            del context, label #memory 
+            # Do the backward pass and update the gradient
             loss.backward()
             optimizer.step()
             iteration += 1
             # Get the Python number from a 1-element Tensor by calling tensor.item()
-            running_loss += loss.item()
-            del context
-            del label
-        losses.append(loss.item())
+            running_loss += float(loss.item())
+            torch.cuda.empty_cache() #memory
+        losses.append(float(loss.item()))
+        del loss #memory 
+        gc.collect() #memory
+        torch.cuda.empty_cache() #memory
 
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
-            total = 0
-            num_correct = 0
             predictionsfull = []
             labelsfull = []
             for a, (context, label) in enumerate(validloader):
@@ -301,9 +298,13 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
                 label = label.to(device)
                 yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
                 predictions = (yhat > 0.5)
-                total += label.nelement()
                 predictionsfull.extend(predictions.int().tolist())
                 labelsfull.extend(label.int().tolist())
+                del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
             f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
             f1_list.append(f1score)
         print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
