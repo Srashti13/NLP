@@ -43,12 +43,12 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    train_size = 1306112#1306112
+    train_size = 5000 #1306112 is full dataset
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, questions, labels = get_docs(train_size) 
     context_array, context_label_array, ids, totalpadlength = get_context_vector(vocab, questions, labels) 
-    run_neural_network(context_array, context_label_array, len(vocab), train_size, totalpadlength)
-    pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, vocab, train_size)
+    # run_neural_network(context_array, context_label_array, len(vocab), train_size, totalpadlength)
+    pretrained_embedding_run_NN(context_array, context_label_array, len(vocab), vocab, train_size,totalpadlength)
     return
 
 def get_docs(train_size):
@@ -339,6 +339,188 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
         print('Test F1: {} %'.format(round(f1score,5)))
     return
 
+def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, vocab, train_size,totalpadlength):
+    '''
+    This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
+    '''
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
+
+    #randomly split into test and validation sets
+    X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
+
+    X_test, y_test = context_array[(train_size):][:], context_label_array[(train_size):][:]
+
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+                                                       random_state=1234, shuffle=True, stratify=y_train)
+    
+    #set datatypes 
+    X_train = torch.from_numpy(X_train)
+    X_train = X_train.long()
+    y_train = torch.from_numpy(y_train)
+    y_train = y_train.float()
+    X_valid = torch.from_numpy(X_valid)
+    X_valid = X_valid.long()
+    y_valid = torch.from_numpy(y_valid)
+    y_valid = y_valid.float()
+    X_test = torch.from_numpy(X_test)
+    X_test = X_test.long()
+    y_test = torch.from_numpy(y_test)
+    y_test = y_test.float()
+    
+    #create datsets for loading into models
+    train = data_utils.TensorDataset(X_train, y_train)
+    valid = data_utils.TensorDataset(X_valid, y_valid)
+    test = data_utils.TensorDataset(X_test, y_test)
+    trainloader = data_utils.DataLoader(train, batch_size=BATCH_SIZE, shuffle=False)
+    validloader = data_utils.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False)
+    testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
+    
+    
+    EMBEDDING_DIM = 200 # embeddings dimensions
+    CONTEXT_SIZE = totalpadlength #sentence size
+    
+    # getting embeddings from the file
+    EMBEDDING_FILE = "Embeddings/glove.6B.200d.txt"
+    embeddings_index = {}
+    words = []
+    with open (EMBEDDING_FILE, encoding="utf8") as f:
+        for line in f:
+            values = line.split()
+            word = values[0]
+            words.append(word)
+            embedding = np.asarray(values[1:], dtype='float32')
+            embeddings_index[word] = embedding
+
+    matrix_len = vocab_size
+    weights_matrix = np.zeros((matrix_len, EMBEDDING_DIM)) # 200 is depth of embedding matrix
+    words_found = 0
+    words_not_found = 0
+    for i, word in enumerate(vocab):
+        try:
+            weights_matrix[i] = embeddings_index[word]
+            words_found += 1
+        
+        except KeyError:
+            weights_matrix[i] = np.random.normal(scale=0.6, size=(EMBEDDING_DIM,)) #randomize out of vocabulary words
+            words_not_found += 1
+    
+    print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format(words_found/vocab_size,words_found,vocab_size))
+    
+    weights_matrix_torch = torch.from_numpy(weights_matrix)
+    
+    def create_emb_layer(weights_matrix, non_trainable=False):
+        num_embeddings, embedding_dim = weights_matrix.size()
+        emb_layer = nn.Embedding(num_embeddings, embedding_dim)
+        emb_layer.load_state_dict({'weight':weights_matrix})
+        if non_trainable:
+            emb_layer.weight.requires_grad = False
+        return emb_layer, num_embeddings, embedding_dim
+    
+    class NGramLanguageModeler(nn.Module):
+        def __init__(self, weights_matrix, context_size):
+            super(NGramLanguageModeler, self).__init__()
+            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
+            self.linear1 = nn.Linear(embedding_dim*context_size, 1)
+            self.out_act = nn.Sigmoid()
+            
+        def forward(self, inputs, context_size, embedding_dim):
+            embeds = self.embedding(inputs).view((-1, context_size*embedding_dim))
+            out1 = self.linear1(embeds)
+            yhat = self.out_act(out1)
+            return yhat 
+
+    #initalize model parameters and variables
+    losses = []
+    loss_function = nn.BCELoss() #binary cross entropy produced best results
+    # Experimenting with MSE Loss
+    #loss_function = nn.MSELoss()
+    model = NGramLanguageModeler(weights_matrix_torch, CONTEXT_SIZE)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
+    # The random weight method isn't as effective as the default pytorch method
+    #model.apply(random_weights)
+    model.to(device)
+    optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    torch.backends.cudnn.benchmark = True #memory
+    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
+    
+    f1_list = []
+    best_f1 = 0 
+    print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
+    for epoch in range(50): 
+        iteration = 0
+        running_loss = 0.0 
+        for i, (context, label) in enumerate(trainloader):
+            # zero out the gradients from the old instance
+            optimizer.zero_grad()
+            # Run the forward pass and get predicted output
+            context = context.to(device)
+            label = label.to(device)
+            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM) #required dimensions for batching
+            yhat = yhat.view(-1,1)
+            # Compute Binary Cross-Entropy
+            loss = loss_function(yhat, label)
+            #clear memory 
+            del context, label #memory 
+            # Do the backward pass and update the gradient
+            loss.backward()
+            optimizer.step()
+            iteration += 1
+            # Get the Python number from a 1-element Tensor by calling tensor.item()
+            running_loss += float(loss.item())
+            torch.cuda.empty_cache() #memory
+        losses.append(float(loss.item()))
+        del loss #memory 
+        gc.collect() #memory
+        torch.cuda.empty_cache() #memory
+
+    # Get the accuracy on the validation set for each epoch
+        with torch.no_grad():
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(validloader):
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                predictions = (yhat > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+                del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
+
+        if f1_list[-1] > best_f1: #save if it improves validation accuracy 
+            best_f1 = f1_list[-1]
+            bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
+        #early stopping condition
+        if epoch+1 >= 5: #start looking to stop after this many epochs
+            if f1_list[-1] < min(f1_list[-5:-1]): #if accuracy lower than lowest of last 4 values
+                print('...Stopping Early...')
+                break
+
+    print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
+    # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
+    model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+    with torch.no_grad():
+        total = 0
+        num_correct = 0
+        predictionsfull = []
+        labelsfull = []
+        for a, (context, label) in enumerate(testloader):
+            context = context.to(device)
+            label = label.to(device)
+            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+            yhat = yhat.view(-1,1)
+            predictions = (yhat > 0.5)
+            total += label.nelement()
+            predictionsfull.extend(predictions.int().tolist())
+            labelsfull.extend(label.int().tolist())
+        f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+        print('Test F1: {} %'.format(round(f1score,5)))
 
 if __name__ == "__main__":
     main()
