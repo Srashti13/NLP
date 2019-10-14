@@ -23,6 +23,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score
 from statistics import mean
+import string
 import random
 import torch.utils.data as data_utils
 import torch
@@ -33,22 +34,22 @@ import gc #garbage collector for gpu memory
 from GPUtil import showUtilization as gpu_usage
 
 
-#emoji regex -- used for emoji tokenization
+
 start_time = time.time()
-emoticon_string = r"(:\)|:-\)|:\(|:-\(|;\);-\)|:-O|8-|:P|:D|:\||:S|:\$|:@|8o\||\+o\(|\(H\)|\(C\)|\(\?\))"
-#https://www.regexpal.com/96995
+
 
 def main():
     '''
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    train_size = 5000 #1306112 is full dataset
+    train_size = 1306112 #1306112 is full dataset
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, questions, labels = get_docs(train_size) 
     context_array, context_label_array, ids, totalpadlength = get_context_vector(vocab, questions, labels) 
     # run_neural_network(context_array, context_label_array, len(vocab), train_size, totalpadlength)
-    pretrained_embedding_run_NN(context_array, context_label_array, len(vocab), vocab, train_size,totalpadlength)
+    # pretrained_embedding_run_NN(context_array, context_label_array, len(vocab), vocab, train_size,totalpadlength)
+    baseline_models(context_array, context_label_array, vocab, train_size, totalpadlength)
     return
 
 def get_docs(train_size):
@@ -75,23 +76,16 @@ def get_docs(train_size):
         Tokenizer that tokenizes text. Also finds and tokenizes emoji faces.
         """
         txt = re.sub(r'\d+', '', txt) #remove numbers
+        txt = txt.translate(str.maketrans('', '', string.punctuation)) #removes punctuation - not used as per requirements
         def lower_repl(match):
             return match.group(1).lower()
 
         # txt = r"This is a practice tweet :). Let's hope our-system can get it right. \U0001F923 something."
         txt = re.sub('(?:<[^>]+>)', '', txt)# remove html tags
         txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial
-        tokens = re.split(emoticon_string,txt) #split based on emoji faces first 
-        tokensfinal = []
-        for i in tokens: #after the emoji tokenizing is done, do basic word tokenizing with what is left
-            if not re.match(emoticon_string,i):
-                to_add = word_tokenize(i)
-                tokensfinal = tokensfinal + to_add
-            else:
-                tokensfinal.append(i)
-        # tokensfinal.insert(0, '_start_') #for use if trying to actually make sentences
-        # tokensfinal.append('_end_')
-        return tokensfinal
+        txt=txt.lower()
+        tokens = word_tokenize(txt)
+        return tokens
 
     #initalize variables
     questions = defaultdict()
@@ -114,7 +108,7 @@ def get_docs(train_size):
         line_count = 0
         rownum = 0
         for row in csv_reader:
-            if line_count < 375806 and rownum > 0:#skip header row 375806
+            if line_count < 100 and rownum > 0:#skip header row 375806
                 questions[row[0]] = tokenize(row[1])
                 labels[row[0]] = int(0) #doesn't matter really... 
                 line_count += 1
@@ -122,7 +116,7 @@ def get_docs(train_size):
     
     
     vocab = list(set([item for sublist in questions.values() for item in sublist]))
-
+    print(vocab)
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))   
     return vocab, questions, labels
 
@@ -136,7 +130,6 @@ def get_context_vector(vocab, questions, labels):
     This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
     --creates 2 fake grams for every real gram 
     '''
-    
 
     word_to_ix = {word: i for i, word in enumerate(vocab)} #index vocabulary
 
@@ -343,7 +336,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
     '''
     This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
     '''
-    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
+    BATCH_SIZE = 10 # 1000 maxes memory for 8GB GPU
 
     #randomly split into test and validation sets
     X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
@@ -404,7 +397,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
             weights_matrix[i] = np.random.normal(scale=0.6, size=(EMBEDDING_DIM,)) #randomize out of vocabulary words
             words_not_found += 1
     
-    print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format(words_found/vocab_size,words_found,vocab_size))
+    print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/vocab_size)*100,words_found,vocab_size))
     
     weights_matrix_torch = torch.from_numpy(weights_matrix)
     
@@ -445,8 +438,8 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
     
     f1_list = []
     best_f1 = 0 
-    print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(50): 
+    print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
+    for epoch in range(2): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -522,5 +515,17 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
         f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
         print('Test F1: {} %'.format(round(f1score,5)))
 
+def baseline_models(context_array, context_label_array, vocab, train_size, totalpadlength):
+
+    #randomly split into test and validation sets
+    X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
+
+    X_test, y_test = context_array[(train_size):][:], context_label_array[(train_size):][:]
+
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+                                                       random_state=1234, shuffle=True, stratify=y_train)
+    return
+
+    #do baseline models based on these TFIDF and BOW.... maybe work with embeddings later on
 if __name__ == "__main__":
     main()
