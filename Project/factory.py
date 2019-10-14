@@ -116,7 +116,6 @@ def get_docs(train_size):
     
     
     vocab = list(set([item for sublist in questions.values() for item in sublist]))
-    print(vocab)
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))   
     return vocab, questions, labels
 
@@ -336,7 +335,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
     '''
     This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
     '''
-    BATCH_SIZE = 10 # 1000 maxes memory for 8GB GPU
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
 
     #randomly split into test and validation sets
     X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
@@ -368,7 +367,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
     validloader = data_utils.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False)
     testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
     
-    
+    print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
     EMBEDDING_DIM = 200 # embeddings dimensions
     CONTEXT_SIZE = totalpadlength #sentence size
     
@@ -516,16 +515,70 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
         print('Test F1: {} %'.format(round(f1score,5)))
 
 def baseline_models(context_array, context_label_array, vocab, train_size, totalpadlength):
+    '''
+    Baseline Logistic and NB using pretrained embeddings of each word as the feature vectors.
+    '''
+    print("--- Building Embedding Index --- %s seconds ---" % (round((time.time() - start_time),2)))
+    #get embedding DFs from context array
+    EMBEDDING_DIM = 200 # embeddings dimensions
+    
+    # getting embeddings from the file
+    EMBEDDING_FILE = "Embeddings/glove.6B.200d.txt"
+    embeddings_index = {}
+    words = []
+    with open (EMBEDDING_FILE, encoding="utf8") as f:
+        for line in f:
+            values = line.split()
+            word = values[0]
+            words.append(word)
+            embedding = np.asarray(values[1:], dtype='float32')
+            embeddings_index[word] = embedding
+
+    matrix_len = len(vocab)
+    weights_matrix = np.zeros((matrix_len, EMBEDDING_DIM)) # 200 is depth of embedding matrix
+    words_found = 0
+    words_not_found = 0
+    for i, word in enumerate(vocab):
+        try:
+            weights_matrix[i] = embeddings_index[word]
+            words_found += 1
+        
+        except KeyError:
+            weights_matrix[i] = np.random.normal(scale=0.6, size=(EMBEDDING_DIM,)) #randomize out of vocabulary words
+            words_not_found += 1
+    
+    print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
+    
+    weights_matrix #embedding given word
+    df = []
+    for x in np.nditer(context_array):
+        df.extend(weights_matrix[x])
+
+    # print(df) - context array with embeddings as features instead
+    df = np.asarray(df)
+    df = df.reshape((len(context_array),EMBEDDING_DIM*totalpadlength)) #reshape to number of questions by embedding dim * number of words
+    print(df.shape)
 
     #randomly split into test and validation sets
-    X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
+    X_train, y_train = df[:(train_size)][:], context_label_array[:(train_size)][:]
 
-    X_test, y_test = context_array[(train_size):][:], context_label_array[(train_size):][:]
+    X_test, y_test = df[(train_size):][:], context_label_array[(train_size):][:]
 
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.03, 
                                                        random_state=1234, shuffle=True, stratify=y_train)
+    print("--- Start Training (Baselines) --- %s seconds ---" % (round((time.time() - start_time),2)))
+
+    from sklearn.naive_bayes import GaussianNB
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import cross_val_score
+
+    NB_scores = cross_val_score(GaussianNB(), X_train, y_train.ravel(), cv=2, scoring="f1_macro")   #could also use x_small
+    print(NB_scores)
+    
+    LR_scores = cross_val_score(LogisticRegression(n_jobs=-1,max_iter=300, solver='lbfgs'), X_train, y_train.ravel(), cv=2, scoring="f1_macro")   
+    print(LR_scores)
     return
 
-    #do baseline models based on these TFIDF and BOW.... maybe work with embeddings later on
+    #do baseline models with embedding feature vectors
 if __name__ == "__main__":
     main()
