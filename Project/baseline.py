@@ -13,7 +13,7 @@ import pandas as pd
 import zipfile
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.pipeline import Pipeline
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.decomposition import TruncatedSVD
 from nltk.corpus import stopwords
 from sklearn.model_selection import cross_val_score
@@ -104,7 +104,7 @@ X_train, X_valid, y_train, y_valid = train_test_split(X,y, test_size=0.2,
      
 #%%
 
-
+# TFIDF
 NB_pipeline = Pipeline([
         ('PreProcess', TextPreprocess()),
         ('vect', TfidfVectorizer()),
@@ -122,6 +122,33 @@ print(NB_scores)
 LR_pipeline = Pipeline([
         ('PreProcess', TextPreprocess()),
         ('vect', TfidfVectorizer()),
+        ('svd', SVD()), #used to reduce dimensions pick this one or 'dense'
+        # ('dense', DenseTransformer()), #comment out if svd performed
+        ('clf', LogisticRegression(n_jobs=-1, solver='lbfgs'))])
+    
+#%% Running Logistic Regression cross validation
+    
+LR_scores = cross_val_score(LR_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   
+print(LR_scores)
+
+# BOW
+NB_pipeline = Pipeline([
+        ('PreProcess', TextPreprocess()),
+        ('vect', CountVectorizer()),
+        ('svd', SVD()), #used to reduce dimensions pick this one or 'dense'
+        # ('dense', DenseTransformer()), #=comment out if svd performed
+        ('clf', GaussianNB())])
+    
+#%% Running Naive Bayes cross validation on a subset of the data (because the whole dataset
+##  takes a really long time) 
+
+NB_scores = cross_val_score(NB_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   #could also use x_small
+print(NB_scores)
+#%%
+
+LR_pipeline = Pipeline([
+        ('PreProcess', TextPreprocess()),
+        ('vect', CountVectorizer()),
         ('svd', SVD()), #used to reduce dimensions pick this one or 'dense'
         # ('dense', DenseTransformer()), #comment out if svd performed
         ('clf', LogisticRegression(n_jobs=-1, solver='lbfgs'))])

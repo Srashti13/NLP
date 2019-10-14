@@ -549,14 +549,17 @@ def baseline_models(context_array, context_label_array, vocab, train_size, total
     
     print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
     
-    weights_matrix #embedding given word
+    weights_matrix  #embedding given word
+    average_weights = np.mean(weights_matrix,axis=1)
+    del weights_matrix
     df = []
     for x in np.nditer(context_array):
-        df.extend(weights_matrix[x])
+        avgvalue = average_weights[x]
+        df.extend([str(avgvalue)]) #mean of embeddings to save memory
 
-    # print(df) - context array with embeddings as features instead
-    df = np.asarray(df)
-    df = df.reshape((len(context_array),EMBEDDING_DIM*totalpadlength)) #reshape to number of questions by embedding dim * number of words
+    # print(df) # context array with embeddings as features instead
+    df = np.asarray(df).astype(np.float)
+    df = df.reshape((len(context_array),totalpadlength)) #reshape to number of questions by  number of words
     print(df.shape)
 
     #randomly split into test and validation sets
