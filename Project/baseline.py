@@ -16,7 +16,9 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.decomposition import TruncatedSVD
 from nltk.corpus import stopwords
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, cross_val_predict
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import precision_recall_fscore_support
 from nltk import word_tokenize
 from nltk.stem.porter import PorterStemmer
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -27,7 +29,7 @@ from sklearn.model_selection import train_test_split
 
 #%%
 
-train = pd.read_csv('Data/train.csv')
+train = pd.read_csv('Data/train.csv') # , nrows=50000 remove for whole dataset
 
 #%%
 
@@ -101,7 +103,6 @@ class DenseTransformer(TransformerMixin):
 
 X_train, X_valid, y_train, y_valid = train_test_split(X,y, test_size=0.2,
                                                                   stratify=y) 
-     
 #%%
 
 # TFIDF
@@ -115,8 +116,27 @@ NB_pipeline = Pipeline([
 #%% Running Naive Bayes cross validation on a subset of the data (because the whole dataset
 ##  takes a really long time) 
 
-NB_scores = cross_val_score(NB_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   #could also use x_small
-print(NB_scores)
+# NB_scores = cross_val_score(NB_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   #could also use x_small
+# print(NB_scores)
+
+#error analysis
+print('\n\n\n\n\n\n\n\n\n\n\n\n-------------- TFIDF NB -----------------')
+CVNB = GridSearchCV(NB_pipeline,{},scoring="f1_macro", cv=2, n_jobs=1)
+CVNB.fit(X_train,y_train)
+y_pred = CVNB.predict(X_valid)
+
+printed = 0
+for (i, label) in enumerate(y_pred):
+    if label != y_valid.iloc[i]:
+        if printed < 20:
+            print(X_valid.iloc[i].encode("utf-8"))
+            print('predicted: %s' % (y_pred[i]))
+            print('labeled: %s' % (y_valid.iloc[i]))
+            printed +=1
+
+results = precision_recall_fscore_support(y_valid,y_pred,average ='macro')
+print('\n\nprecision, accuracy, recall:')
+print(results) # precision , recall, fscore
 #%%
 
 LR_pipeline = Pipeline([
@@ -128,10 +148,29 @@ LR_pipeline = Pipeline([
     
 #%% Running Logistic Regression cross validation
     
-LR_scores = cross_val_score(LR_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   
-print(LR_scores)
+# LR_scores = cross_val_score(LR_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   
+# print(LR_scores)
+
+#error analysis
+print('\n\n\n\n\n\n\n\n\n\n\n\n-------------- TFIDF LR -----------------')
+CVLR = GridSearchCV(LR_pipeline,{},scoring="f1_macro", cv=2, n_jobs=1)
+CVLR.fit(X_train,y_train)
+y_pred = CVLR.predict(X_valid)
+
+printed = 0
+for (i, label) in enumerate(y_pred):
+    if label != y_valid.iloc[i]:
+        if printed < 20:
+            print(X_valid.iloc[i].encode("utf-8"))
+            print('predicted: %s' % (y_pred[i]))
+            print('labeled: %s' % (y_valid.iloc[i]))
+            printed +=1
+results = precision_recall_fscore_support(y_valid,y_pred,average ='macro')
+print('\n\nprecision, accuracy, recall:')
+print(results) # precision , recall, fscore
 
 # BOW
+print('\n\n\n\n\n\n\n\n\n\n\n\n-------------- BOW NB -----------------')
 NB_pipeline = Pipeline([
         ('PreProcess', TextPreprocess()),
         ('vect', CountVectorizer()),
@@ -142,8 +181,26 @@ NB_pipeline = Pipeline([
 #%% Running Naive Bayes cross validation on a subset of the data (because the whole dataset
 ##  takes a really long time) 
 
-NB_scores = cross_val_score(NB_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   #could also use x_small
-print(NB_scores)
+# NB_scores = cross_val_score(NB_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   #could also use x_small
+# print(NB_scores)
+
+#error analysis
+CVNB = GridSearchCV(NB_pipeline,{},scoring="f1_macro", cv=2, n_jobs=1)
+CVNB.fit(X_train,y_train)
+y_pred = CVNB.predict(X_valid)
+
+printed = 0
+for (i, label) in enumerate(y_pred):
+    if label != y_valid.iloc[i]:
+        if printed < 20:
+            print(X_valid.iloc[i].encode("utf-8"))
+            print('predicted: %s' % (y_pred[i]))
+            print('labeled: %s' % (y_valid.iloc[i]))
+            printed +=1
+
+results = precision_recall_fscore_support(y_valid,y_pred,average ='macro')
+print('\n\nprecision, accuracy, recall:')
+print(results) # precision , recall, fscore
 #%%
 
 LR_pipeline = Pipeline([
@@ -155,8 +212,27 @@ LR_pipeline = Pipeline([
     
 #%% Running Logistic Regression cross validation
     
-LR_scores = cross_val_score(LR_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   
-print(LR_scores)
+# LR_scores = cross_val_score(LR_pipeline, X_train, y_train, cv=2, scoring="f1_macro")   
+# print(LR_scores)
+
+#error analysis
+print('\n\n\n\n\n\n\n\n\n\n\n-------------- BOW LR -----------------')
+CVLR = GridSearchCV(LR_pipeline,{},scoring="f1_macro", cv=2, n_jobs=1)
+CVLR.fit(X_train,y_train)
+y_pred = CVLR.predict(X_valid)
+
+printed = 0
+for (i, label) in enumerate(y_pred):
+    if label != y_valid.iloc[i]:
+        if printed < 20:
+            print(X_valid.iloc[i].encode("utf-8"))
+            print('predicted: %s' % (y_pred[i]))
+            print('labeled: %s' % (y_valid.iloc[i]))
+            printed += 1
+        
+results = precision_recall_fscore_support(y_valid,y_pred,average ='macro')
+print('\n\nprecision, accuracy, recall:')
+print(results) # precision , recall, fscore
 
 
 #https://www.kaggle.com/evanmiller/pipelines-gridsearch-awesome-ml-pipelines

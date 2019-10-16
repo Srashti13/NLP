@@ -1,0 +1,295 @@
+-------------- TFIDF NB -----------------
+b'Did your dad hurt you, or your sister, or your family ever. If so, what did you do?'
+predicted: 1
+labeled: 0
+b'Are Iranians whiter than Turks?'
+predicted: 0
+labeled: 1
+b'What led women to migrate to the Chesapeake?'
+predicted: 1
+labeled: 0
+b'How long does it take for a letter to arrive in China from Europe?'
+predicted: 1
+labeled: 0
+b'What are some social norm we should follow so we dont seem weird or not to freak people out?'
+predicted: 1
+labeled: 0
+b'How come I am having my period and still have a positive pregnancy test?'
+predicted: 1
+labeled: 0
+b'Assuming he had possessed functioning sex organs, would Severus Snape have castrated himself to save Lily?'
+predicted: 0
+labeled: 1
+b'Where does the Quora moderation department find the stupid shit-for-brains that work there?'
+predicted: 0
+labeled: 1
+b'What is our current immigration policy concerning workers that want to come to the USA?'
+predicted: 1
+labeled: 0
+b"Why isn't there enough digital and internet content in Assamese and Odia languages as opposed to other mainstream Indian languages?"
+predicted: 1
+labeled: 0
+b'Is Chris Eubank gay?'
+predicted: 0
+labeled: 1
+b'When will Indonesia cease to occupy Western Papua?'
+predicted: 0
+labeled: 1
+b'Does my boyfriend want to kiss me? Should I go for it?'
+predicted: 1
+labeled: 0
+b'What is the difference between shaafi and Sunni Muslim?'
+predicted: 1
+labeled: 0
+b'What do you do if you live with your bully/mental abuser?'
+predicted: 1
+labeled: 0
+b'Did Mao enjoy killing?'
+predicted: 0
+labeled: 1
+b'Why is ICICIPRULI share price going down since it reached 490?'
+predicted: 1
+labeled: 0
+b'Any filipina girl and Pakistani boy who met in internet and have a strong relationship?'
+predicted: 1
+labeled: 0
+b'What innocent excuses can I give my kids so that I can go out and have fun with my husband?'
+predicted: 1
+labeled: 0
+b'Why is it generally assumed that men should initiate sex in marriages? Why do men always have an image of a sexual predator?'
+predicted: 1
+labeled: 0
+
+
+precision, accuracy, recall:
+(0.5466684919465864, 0.5850802006796458, 0.5545014537512013, None)
+
+
+
+
+
+
+
+
+
+
+
+
+-------------- TFIDF LR -----------------
+b'Are Muslims becoming very intolerant when people talk about religion?'
+predicted: 0
+labeled: 1
+b'My boyfriend thinks we\xe2\x80\x99re too different but I don\xe2\x80\x99t think so, what should I do?'
+predicted: 1
+labeled: 0
+b'Are Iranians whiter than Turks?'
+predicted: 0
+labeled: 1
+b'Philosophically speaking, why do you think that a word can mean two different things to the same person?'
+predicted: 1
+labeled: 0
+b'Assuming he had possessed functioning sex organs, would Severus Snape have castrated himself to save Lily?'
+predicted: 0
+labeled: 1
+b'Where does the Quora moderation department find the stupid shit-for-brains that work there?'
+predicted: 0
+labeled: 1
+b'Is Chris Eubank gay?'
+predicted: 0
+labeled: 1
+b'When will Indonesia cease to occupy Western Papua?'
+predicted: 0
+labeled: 1
+b'Did Mao enjoy killing?'
+predicted: 0
+labeled: 1
+b'I am physically immortal and my body heals/regenerates From everything. How do I prove it to people?'
+predicted: 0
+labeled: 1
+b'Why does President Trump lie all the time?'
+predicted: 0
+labeled: 1
+b'Is half of America below average in intelligence?'
+predicted: 0
+labeled: 1
+b'Why upper caste people hate Yadavs?'
+predicted: 0
+labeled: 1
+b'Women need to cry and they usually do it in front of someone, so that you can hear them. True or false?'
+predicted: 0
+labeled: 1
+b'Why do police officers abuse non-violent, unarmed, citizens and then not get punished?'
+predicted: 0
+labeled: 1
+b"Is it true that Tamilians' infinite love towards Tamil made them hate Hindi and other languages? if so, why do they hate Northern Indians?"
+predicted: 0
+labeled: 1
+b"Is Trump's greatest failure the fact that he has the power to raise awareness of dangerous minorities, yet only talks about Hispanics and not about the real danger, privileged Asians in white collar jobs?"
+predicted: 0
+labeled: 1
+b"Are Indian people's egos the most damaging weakness that is preventing them from making India a superpower?"
+predicted: 0
+labeled: 1
+b'Why are Hindus unhappy in India? Why do they feel they are neglected and oppressed?'
+predicted: 0
+labeled: 1
+b'What happens if a single drop of sperm falls into the food or curry of a girl or woman who eats that food, or uses that plate? Will she get pregnant?'
+predicted: 0
+labeled: 1
+
+
+precision, accuracy, recall:
+(0.5182009047735725, 0.5040341667875949, 0.4982258078017922, None)
+
+
+
+
+
+
+
+
+
+
+
+
+-------------- BOW NB -----------------
+b'What if Bollywood started making good movies, how would it affect the whole system of Bollywood and people of India?'
+predicted: 1
+labeled: 0
+b'Can I get into medical schools abroad without taking math in 11th and 12th?'
+predicted: 1
+labeled: 0
+b'I am now in class 12.i will turn 17 on January 2018.will I not be able to sit for neet next year as it says that u should atleast be 17 when u enroll which will be probably on dec2017?'
+predicted: 1
+labeled: 0
+b'Are Iranians whiter than Turks?'
+predicted: 0
+labeled: 1
+b'How long does it take for a letter to arrive in China from Europe?'
+predicted: 1
+labeled: 0
+b'What do you do when a friend has started cutting?'
+predicted: 1
+labeled: 0
+b'Philosophically speaking, why do you think that a word can mean two different things to the same person?'
+predicted: 1
+labeled: 0
+b'Why will Americans move out of the way of a black person that shoves them but not an Asian who asks politely for them to?'
+predicted: 1
+labeled: 0
+b'How come I am having my period and still have a positive pregnancy test?'
+predicted: 1
+labeled: 0
+b'Assuming he had possessed functioning sex organs, would Severus Snape have castrated himself to save Lily?'
+predicted: 0
+labeled: 1
+b'Can your Big 5 personality change over time?'
+predicted: 1
+labeled: 0
+b'What does it mean when my heart line splits into two and the comes back together?'
+predicted: 1
+labeled: 0
+b'What does the word nosh mean on social media?'
+predicted: 1
+labeled: 0
+b"My tooth is buried in my gums and won't come out. I've had surgeries to get it out but they failed. Is the second option going to be getting a fake tooth?"
+predicted: 1
+labeled: 0
+b'Which are the courses that one should study in this century in order to earn maximum money and how much money can anyone earn in that field?'
+predicted: 1
+labeled: 0
+b'I find it almost impossible to change my ideas into actions? Is my brain functioning properly?'
+predicted: 1
+labeled: 0
+b'How would you change your parents\xe2\x80\x99 minds if they believe that all emotions are nuisance and they mock you whenever you express negative emotions?'
+predicted: 1
+labeled: 0
+b'What is our current immigration policy concerning workers that want to come to the USA?'
+predicted: 1
+labeled: 0
+b'Why did Facebook thing automatically playing the next video, even when someone is in the comment section was a good idea?'
+predicted: 1
+labeled: 0
+b"Why isn't there enough digital and internet content in Assamese and Odia languages as opposed to other mainstream Indian languages?"
+predicted: 1
+labeled: 0
+
+
+precision, accuracy, recall:
+(0.542988963978477, 0.6245445307616282, 0.536500484417961, None)
+
+
+
+
+
+
+
+
+
+
+
+-------------- BOW LR -----------------
+b"Guns don't kill people. People kill people. But why are Americans always complaining about the mass shootings?"
+predicted: 0
+labeled: 1
+b'Are Muslims becoming very intolerant when people talk about religion?'
+predicted: 0
+labeled: 1
+b'What are the best universities in Germany to study machine learning in English?'
+predicted: 1
+labeled: 0
+b'Are Iranians whiter than Turks?'
+predicted: 0
+labeled: 1
+b'What is the best way to make a meringue pie with powdered sugar?'
+predicted: 1
+labeled: 0
+b'Why will Americans move out of the way of a black person that shoves them but not an Asian who asks politely for them to?'
+predicted: 1
+labeled: 0
+b'What is fastest way to travel from Harvard square to Brandeis University by public transport on a weekday afternoon, other than the commuter rail?'
+predicted: 1
+labeled: 0
+b'Assuming he had possessed functioning sex organs, would Severus Snape have castrated himself to save Lily?'
+predicted: 0
+labeled: 1
+b'Where does the Quora moderation department find the stupid shit-for-brains that work there?'
+predicted: 0
+labeled: 1
+b'Can your Big 5 personality change over time?'
+predicted: 1
+labeled: 0
+b'Which are the courses that one should study in this century in order to earn maximum money and how much money can anyone earn in that field?'
+predicted: 1
+labeled: 0
+b"What are your thoughts on Trump's policy towards Climate Change? How does it affect the US and the world economically?"
+predicted: 1
+labeled: 0
+b'Is Chris Eubank gay?'
+predicted: 0
+labeled: 1
+b'When will Indonesia cease to occupy Western Papua?'
+predicted: 0
+labeled: 1
+b'Did Mao enjoy killing?'
+predicted: 0
+labeled: 1
+b'What is the best way to put glow-in-the-dark stars on a ceiling?'
+predicted: 1
+labeled: 0
+b'What is difference between CSE and IT engineer?'
+predicted: 1
+labeled: 0
+b'I am physically immortal and my body heals/regenerates From everything. How do I prove it to people?'
+predicted: 0
+labeled: 1
+b'Why does President Trump lie all the time?'
+predicted: 0
+labeled: 1
+b'Is half of America below average in intelligence?'
+predicted: 0
+labeled: 1
+
+
+precision, accuracy, recall:
+(0.5054112117989226, 0.5019284126986253, 0.49759850817304385, None)

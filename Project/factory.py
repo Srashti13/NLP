@@ -567,7 +567,7 @@ def baseline_models(context_array, context_label_array, vocab, train_size, total
 
     X_test, y_test = df[(train_size):][:], context_label_array[(train_size):][:]
 
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.03, 
+    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.97, 
                                                        random_state=1234, shuffle=True, stratify=y_train)
     print("--- Start Training (Baselines) --- %s seconds ---" % (round((time.time() - start_time),2)))
 
