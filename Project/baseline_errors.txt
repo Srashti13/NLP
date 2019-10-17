@@ -61,7 +61,7 @@ predicted: 1
 labeled: 0
 
 
-precision, accuracy, recall:
+precision, reacall, f1:
 (0.5466684919465864, 0.5850802006796458, 0.5545014537512013, None)
 
 
@@ -138,7 +138,7 @@ predicted: 0
 labeled: 1
 
 
-precision, accuracy, recall:
+precision, reacall, f1:
 (0.5182009047735725, 0.5040341667875949, 0.4982258078017922, None)
 
 
@@ -215,7 +215,7 @@ predicted: 1
 labeled: 0
 
 
-precision, accuracy, recall:
+precision, reacall, f1:
 (0.542988963978477, 0.6245445307616282, 0.536500484417961, None)
 
 
@@ -291,5 +291,5 @@ predicted: 0
 labeled: 1
 
 
-precision, accuracy, recall:
+precision, reacall, f1:
 (0.5054112117989226, 0.5019284126986253, 0.49759850817304385, None)

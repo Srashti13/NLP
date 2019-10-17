@@ -1,0 +1,307 @@
+
+
+
+
+
+
+
+
+
+
+
+
+-------------- TFIDF NB -----------------
+b'How do I integrate 1/x^2logx?'
+predicted: 1
+labeled: 0
+b'How cheap is it to shop clothes in Budapest, Hungary?'
+predicted: 1
+labeled: 0
+b'How reliable are the advises of Dhirendra Kumar of valueresearchonline.com?'
+predicted: 1
+labeled: 0
+b'When did you feel first time yourself as shamed as being an Indian? Why it so?'
+predicted: 0
+labeled: 1
+b'Is it ok to go straight to react JS with only HTML and CSS knowledge?'
+predicted: 1
+labeled: 0
+b'How do I easily earn gold in Plant vs Zombie 2?'
+predicted: 1
+labeled: 0
+b'Is the Chinese economy actually crony capitalism rather than state capitalism?'
+predicted: 1
+labeled: 0
+b"Does the Chinese government realize how damaging the behaviour of some of its citizens are to the country's image when travelling overseas?"
+predicted: 1
+labeled: 0
+b'Why is testicular bruising so painful?'
+predicted: 1
+labeled: 0
+b'Are some drugs addictive as a direct result of the drug, or are they addictive based off the receptors and types of neurons they act on?'
+predicted: 1
+labeled: 0
+b'Should you hedge foreign stock in domestic currency?'
+predicted: 1
+labeled: 0
+b"What are McDonald's competitive edges?"
+predicted: 1
+labeled: 0
+b'What is the procedure if you want to switch your job from Android developer to business analyst?'
+predicted: 1
+labeled: 0
+b'Are you happy, Jennifer Lawrence?'
+predicted: 1
+labeled: 0
+b'Does installing VMware on my windows 10 laptop will harm my laptop?'
+predicted: 1
+labeled: 0
+b'How can I revive JFK using a spoon?'
+predicted: 1
+labeled: 0
+b'Can I recover deleted messages from the sim card?'
+predicted: 1
+labeled: 0
+b'Are infinity in maths and physics breaking the law of calculations?'
+predicted: 1
+labeled: 0
+b'What is value of weight of free falling objecj?'
+predicted: 1
+labeled: 0
+b'How do I replace my ITIL certificate?'
+predicted: 1
+labeled: 0
+
+
+precision, accuracy, recall:
+(0.4989573869106521, 0.4961376322858559, 0.4467785229329052, None)
+
+
+
+
+
+
+
+
+
+
+
+
+-------------- TFIDF LR -----------------
+b'Is Trump abusing migrant children and their parents at the border because of sadism or incompetence?'
+predicted: 0
+labeled: 1
+b'When did you feel first time yourself as shamed as being an Indian? Why it so?'
+predicted: 0
+labeled: 1
+b'Can I keep vodka blue martini cocktail in refrigerator for a few days?'
+predicted: 1
+labeled: 0
+b'Is there any tips for studying?'
+predicted: 1
+labeled: 0
+b'Why do historians and archaeologists use various sources to study about our past?'
+predicted: 1
+labeled: 0
+b'What are some useful tips and tricks when using a translator in a country which you know nothing about it\xc2\xb4s language?'
+predicted: 1
+labeled: 0
+b'What are the biggest reasons you hate the USA and Americans?'
+predicted: 0
+labeled: 1
+b'What is the use of computer science?'
+predicted: 1
+labeled: 0
+b'Why do leftist liberals freak out about every word that President Trump says?'
+predicted: 0
+labeled: 1
+b'How can I feel being ignored by my own family?'
+predicted: 1
+labeled: 0
+b'I just listened to MS. Noelle Nickpour a Republican saying that everyone Mr 45 picked to kiss his ass, is still liked by the American people. She mentioned Kelly Ann Conway. Is she out of her mind?'
+predicted: 0
+labeled: 1
+b'Why is Mangalore hated equally by the Kannadigas of Karnataka and the Malayalees of Kerala?'
+predicted: 0
+labeled: 1
+b'Will Obama go to jail for Ordering 500,000 fugitives to be deleted from a background check database?'
+predicted: 0
+labeled: 1
+b"What's your worst day?"
+predicted: 1
+labeled: 0
+b'What are some examples of French phrases that use "avoir" whose English counterparts use "to be" (such as "to be cold"/"avoir froid" or "to be hungry"/"avoir faim")?'
+predicted: 1
+labeled: 0
+b'Are Koreans less friendly as compared to Japanese?'
+predicted: 0
+labeled: 1
+b'Why do Indians defend obscenity in their movies in the name of Khajuraho and Kamasutra?'
+predicted: 0
+labeled: 1
+b'Has the situation arisen for the so called upper castes to demand the separate land for forming their own country? As for them, there is no future in India in this era of "reservation terrorism".'
+predicted: 0
+labeled: 1
+b'Why have Taiwanese become more ideological than Mainland Chinese?'
+predicted: 0
+labeled: 1
+b'West Virginia seems to have a lot of really unhealthy, uneducated and just plain stupid people. What gives?'
+predicted: 0
+labeled: 1
+
+
+precision, accuracy, recall:
+(0.4887183801055678, 0.4947987987429135, 0.48947414982943604, None)
+
+
+
+
+
+
+
+
+
+
+
+
+-------------- BOW NB -----------------
+b'Besides humans, what animals have the highest IQ or EQ?'
+predicted: 1
+labeled: 0
+b'Is Trump abusing migrant children and their parents at the border because of sadism or incompetence?'
+predicted: 0
+labeled: 1
+b'How can the USA considered to be richer than China if the USA owes China $1 trillion while China owes $0 to the USA?'
+predicted: 1
+labeled: 0
+b'What would happen if all the people come at once to collect all their money from banks?'
+predicted: 1
+labeled: 0
+b'Can I keep vodka blue martini cocktail in refrigerator for a few days?'
+predicted: 1
+labeled: 0
+b"Do you think it is or isn't morally justified for Jewish community in US to demand money from Poland for Jewish Poles assets that were left behind/ can't be inherited because of no living heirs/ were destroyed by Nazi Germany - during WWII?"
+predicted: 1
+labeled: 0
+b'How old is too old for a PhD in astrophysics?'
+predicted: 1
+labeled: 0
+b'Why is it mandatory to learn about physics in school?'
+predicted: 1
+labeled: 0
+b'What is the starting salary of air hostess in Indian airlines?'
+predicted: 1
+labeled: 0
+b'What is the procedure if you want to switch your job from Android developer to business analyst?'
+predicted: 1
+labeled: 0
+b'What advice would you give to someone who is moving to Rancho Cucamonga, CA?'
+predicted: 1
+labeled: 0
+b"If you're non-binary, what would you want your child to call you as a parent?"
+predicted: 1
+labeled: 0
+b"Why is my acne starting to come back even though I'm using benzoyl peroxide?"
+predicted: 1
+labeled: 0
+b'Does social media inspire more than depress others?'
+predicted: 1
+labeled: 0
+b'What are the biggest reasons you hate the USA and Americans?'
+predicted: 0
+labeled: 1
+b'How India is known to a common man in Europe. What they think of India as a country?'
+predicted: 1
+labeled: 0
+b'What is the use of computer science?'
+predicted: 1
+labeled: 0
+b'Where was the original location of Parthians, north west or north east of Iran? They were in north east, but their language is listed as northwestern Iranian language.'
+predicted: 1
+labeled: 0
+b'Why is Mangalore hated equally by the Kannadigas of Karnataka and the Malayalees of Kerala?'
+predicted: 0
+labeled: 1
+b'How do I come clean to a guy for lying about my age? I told him I was older than I actually am, but I know that if I want to keep the friendship, I need to come clean. How do I do it in a way that could still keep our friendship the way it is?'
+predicted: 1
+labeled: 0
+
+
+precision, accuracy, recall:
+(0.541941257595998, 0.6228453001821563, 0.5342818972841563, None)
+
+
+
+
+
+
+
+
+
+
+
+-------------- BOW LR -----------------
+b'Is Trump abusing migrant children and their parents at the border because of sadism or incompetence?'
+predicted: 0
+labeled: 1
+b'When did you feel first time yourself as shamed as being an Indian? Why it so?'
+predicted: 0
+labeled: 1
+b'What are the biggest reasons you hate the USA and Americans?'
+predicted: 0
+labeled: 1
+b'Why do leftist liberals freak out about every word that President Trump says?'
+predicted: 0
+labeled: 1
+b'I just listened to MS. Noelle Nickpour a Republican saying that everyone Mr 45 picked to kiss his ass, is still liked by the American people. She mentioned Kelly Ann Conway. Is she out of her mind?'
+predicted: 0
+labeled: 1
+b'Why is Mangalore hated equally by the Kannadigas of Karnataka and the Malayalees of Kerala?'
+predicted: 0
+labeled: 1
+b'Will Obama go to jail for Ordering 500,000 fugitives to be deleted from a background check database?'
+predicted: 0
+labeled: 1
+b'Are Koreans less friendly as compared to Japanese?'
+predicted: 0
+labeled: 1
+b'Why do Indians defend obscenity in their movies in the name of Khajuraho and Kamasutra?'
+predicted: 0
+labeled: 1
+b'Has the situation arisen for the so called upper castes to demand the separate land for forming their own country? As for them, there is no future in India in this era of "reservation terrorism".'
+predicted: 0
+labeled: 1
+b'Why do so many people ask very specific questions? I\'ve answered so many of these questions by just Googling it. Why don\'t the inquirers just do the same thing? I think maybe they simply want to be "published"!'
+predicted: 1
+labeled: 0
+b'Why have Taiwanese become more ideological than Mainland Chinese?'
+predicted: 0
+labeled: 1
+b'West Virginia seems to have a lot of really unhealthy, uneducated and just plain stupid people. What gives?'
+predicted: 0
+labeled: 1
+b'What do you think of a 30 year old unmarried working independent girl of India?'
+predicted: 1
+labeled: 0
+b'Did you know that Quora bans your account if you mention the fact that the United States is of America and that it is not itself what is actually named America?'
+predicted: 0
+labeled: 1
+b'Why are Muslims not educated and dont follow family planning in India?'
+predicted: 0
+labeled: 1
+b'Why do some people like to objectify themselves in sex? When women say \xe2\x80\x9cfuck that pussy", it seems they are objectifying themselves by detaching their vagina from their personal identity.'
+predicted: 0
+labeled: 1
+b'Are thin women viewed as hideous and not "real women" by today\'s society?'
+predicted: 0
+labeled: 1
+b'Is the EVM tampering in Gujarat election the biggest scam of the present decade in India?'
+predicted: 0
+labeled: 1
+b"Democrats tend to take Harvard's word that Warren's alleged NA heritage played no role in her hiring, and ignore circumstantial facts like Harvard bragging about it. Should the Justice Dept investigating Harvard for racial discrimination do the same?"
+predicted: 0
+labeled: 1
+
+
+precision, accuracy, recall:
+(0.622779129926081, 0.5357497613142774, 0.5480778169247168, None)

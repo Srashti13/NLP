@@ -55,8 +55,6 @@ f1_score(y, prediction)
 
 #%% 
 
-tf = TfidfVectorizer()
-
 #%%
 # creating a mapping for contractions to be tokenized
 contractions ={
@@ -108,7 +106,7 @@ X_train, X_valid, y_train, y_valid = train_test_split(X,y, test_size=0.2,
 # TFIDF
 NB_pipeline = Pipeline([
         ('PreProcess', TextPreprocess()),
-        ('vect', TfidfVectorizer()),
+        ('vect', TfidfVectorizer(ngram_range =(1,3))),
         ('svd', SVD()), #used to reduce dimensions pick this one or 'dense'
         # ('dense', DenseTransformer()), #=comment out if svd performed
         ('clf', GaussianNB())])
@@ -141,7 +139,7 @@ print(results) # precision , recall, fscore
 
 LR_pipeline = Pipeline([
         ('PreProcess', TextPreprocess()),
-        ('vect', TfidfVectorizer()),
+        ('vect', TfidfVectorizer(ngram_range =(1,3))),
         ('svd', SVD()), #used to reduce dimensions pick this one or 'dense'
         # ('dense', DenseTransformer()), #comment out if svd performed
         ('clf', LogisticRegression(n_jobs=-1, solver='lbfgs'))])
@@ -173,7 +171,7 @@ print(results) # precision , recall, fscore
 print('\n\n\n\n\n\n\n\n\n\n\n\n-------------- BOW NB -----------------')
 NB_pipeline = Pipeline([
         ('PreProcess', TextPreprocess()),
-        ('vect', CountVectorizer()),
+        ('vect', CountVectorizer(ngram_range =(1,3))),
         ('svd', SVD()), #used to reduce dimensions pick this one or 'dense'
         # ('dense', DenseTransformer()), #=comment out if svd performed
         ('clf', GaussianNB())])
@@ -205,7 +203,7 @@ print(results) # precision , recall, fscore
 
 LR_pipeline = Pipeline([
         ('PreProcess', TextPreprocess()),
-        ('vect', CountVectorizer()),
+        ('vect', CountVectorizer(ngram_range =(1,3))),
         ('svd', SVD()), #used to reduce dimensions pick this one or 'dense'
         # ('dense', DenseTransformer()), #comment out if svd performed
         ('clf', LogisticRegression(n_jobs=-1, solver='lbfgs'))])
