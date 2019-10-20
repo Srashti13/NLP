@@ -9,20 +9,25 @@ Command to run the file: python HW3.py
 import re
 
 #%% reading in the training data and creating the vocab
-vocab = {}
+from collections import defaultdict
+vocab = defaultdict(list)
 train = []
 with open(r"conll2003\train.txt") as f:
     for word in f.read().splitlines():
         a = word.split(" ")
         if len(a)>1:
-            vocab[a[0]] = a[3]
+            vocab[a[0]].append(a[3])
             train.append([a[0],a[3]])
         else: 
             train.append(a[0])
-#%%
+            
 train.insert(0,'')
 
-#%%
+# retaining the unique tags for each vocab word
+for k,v in vocab.items():
+    vocab[k] = (list(set(v)))
+    
+#%% lowercasing all words that have some, but not all, uppercase
 def lower_repl(match):
     return match.group().lower()
 def lowercase_text(txt):
@@ -32,25 +37,24 @@ def lowercase_text(txt):
 for word in train:
     if word:
         word[0] = lowercase_text(word[0])
-#%%
+        
+#%% getting the indices of the end of each sentence
 sentence_ends = []
 for i, word in enumerate(train):
     if not word:
         sentence_ends.append(i)
 sentence_ends.append(len(train)-1)
-#%%
+#%% creating a list of all the sentences 
 sentences = []
 for i in range(len(sentence_ends)-1):
     sentences.append(train[sentence_ends[i]+1:sentence_ends[i+1]])
     
-#%%
 # getting the longest sentence
 max(sentences, key=len)
 # getting the length of the longest sentence
 max_sent_len = len(max(sentences, key=len))
 
-#%% padding all of the sentences to make them length 113
-
+## padding all of the sentences to make them length 113
 for sentence in sentences:
     sentence.extend(['0','<pad>'] for i in range(max_sent_len-len(sentence)))
     
