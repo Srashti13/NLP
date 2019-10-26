@@ -43,10 +43,12 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    train_size = 5000 #1306112 is full dataset
+    train_size = 100000 #1306112 is full dataset
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, questions, labels = get_docs(train_size) 
     context_array, context_label_array, ids, totalpadlength = get_context_vector(vocab, questions, labels) 
+    unique, cnts = np.unique(context_label_array, return_counts=True)
+    print(dict(zip(unique, cnts)))
     # run_neural_network(context_array, context_label_array, len(vocab), train_size, totalpadlength)
     # pretrained_embedding_run_NN(context_array, context_label_array, len(vocab), vocab, train_size,totalpadlength)
     run_RNN(context_array, context_label_array, len(vocab), train_size, totalpadlength)
@@ -171,7 +173,7 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     provided.
     '''
     
-    BATCH_SIZE = 50 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 5000 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
@@ -234,10 +236,7 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
             return yhat
 
     
-    # randomly drawing values from a uniform distribution for weight initialization
-    def random_weights(model):
-        if type(model) == nn.Linear:
-            torch.nn.init.uniform_(model.weight)
+
             
     #initalize model parameters and variables
     losses = []
@@ -246,9 +245,8 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     #loss_function = nn.MSELoss()
     model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE) #.to_fp16() for memory
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
-    model.apply(random_weights)
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.SGD(model.parameters(), lr=0.1) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
@@ -590,7 +588,7 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
     RNN version 
     '''
     
-    BATCH_SIZE = 50 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
@@ -625,7 +623,7 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
     #edit as deisred
     EMBEDDING_DIM = 25 # embeddings dimensions
     CONTEXT_SIZE = totalpadlength # total length of padded questions size
-    HIDDEN_SIZE = 20 # nodes in hidden layer
+    HIDDEN_SIZE = 40 # nodes in hidden layer
 
     class RNNmodel(nn.Module):
         '''
@@ -640,21 +638,20 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
         def __init__(self, vocab_size, embedding_dim, context_size, hidden_size):
             super(RNNmodel, self).__init__()
             self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
-            self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size)
+            self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True)
             self.linear = nn.Linear(hidden_size, 1)
             self.out_act = nn.Sigmoid()
     
         def forward(self, inputs, context_size, embedding_dim):
-            embeds = self.embeddings(inputs).view((context_size,-1,embedding_dim)) #required dimensions for batching 
-            # print(embeds.shape)
+            embeds = self.embeddings(inputs) #required dimensions for batching 
+            print(embeds.shape)
             out1, _ = self.rnn(embeds)
             # print(out1.shape)
-            out2 = self.linear(out1[-1,:,:])
+            out2 = self.linear(out1[:,-1,:])
             # print(out2.shape)
             yhat = self.out_act(out2)
             # print(yhat)
             return yhat
-
             
     #initalize model parameters and variables
     losses = []
@@ -664,7 +661,7 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
     model = RNNmodel(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE) #.to_fp16() for memory
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.SGD(model.parameters(), lr=0.1) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
@@ -679,6 +676,8 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
             optimizer.zero_grad()
             # Run the forward pass and get predicted output
             context = context.to(device)
+            # print('start with input')
+            # print(context.shape)
             label = label.to(device)
             yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM) #required dimensions for batching
             yhat = yhat.view(-1,1)
@@ -721,11 +720,11 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
         if f1_list[-1] > best_f1: #save if it improves validation accuracy 
             best_f1 = f1_list[-1]
             bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
-        #early stopping condition
-        if epoch+1 >= 5: #start looking to stop after this many epochs
-            if f1_list[-1] < min(f1_list[-5:-1]): #if accuracy lower than lowest of last 4 values
-                print('...Stopping Early...')
-                break
+        # #early stopping condition
+        # if epoch+1 >= 5: #start looking to stop after this many epochs
+        #     if f1_list[-1] < min(f1_list[-5:-1]): #if accuracy lower than lowest of last 4 values
+        #         print('...Stopping Early...')
+        #         break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
     # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
