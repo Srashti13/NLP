@@ -30,6 +30,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn 
+import pandas as pd
 import gc #garbage collector for gpu memory 
 # from GPUtil import showUtilization as gpu_usage
 
@@ -44,18 +45,19 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     train_size = 100000 #1306112 is full dataset
+    readytosubmit=False
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
-    vocab, questions, labels = get_docs(train_size) 
-    context_array, context_label_array, ids, totalpadlength = get_context_vector(vocab, questions, labels) 
-    unique, cnts = np.unique(context_label_array, return_counts=True)
+    vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
+    train_context_array, train_context_label_array, test_context_array, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions)
+    unique, cnts = np.unique(train_context_label_array, return_counts=True)
     print(dict(zip(unique, cnts)))
-    # run_neural_network(context_array, context_label_array, len(vocab), train_size, totalpadlength)
-    # pretrained_embedding_run_NN(context_array, context_label_array, len(vocab), vocab, train_size,totalpadlength)
-    run_RNN(context_array, context_label_array, len(vocab), train_size, totalpadlength)
-    # baseline_models(context_array, context_label_array, vocab, train_size, totalpadlength)
+    run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit)
+    pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit)
+    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit)
+    # baseline_models(train_context_array, train_context_label_array,test_context_array,test_ids, vocab, train_size, totalpadlength)
     return
 
-def get_docs(train_size):
+def get_docs(train_size, readytosubmit):
 
     '''
     Pre-processing: Read the complete data word by word. Remove any markup tags, e.g., HTML
@@ -95,34 +97,29 @@ def get_docs(train_size):
     labels = defaultdict()
     docs = []
     #laod data and tokenize
-    with open('kaggle/input/quora-insincere-questions-classification/train.csv',encoding="utf8") as csv_file: #add slash for comp
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        line_count = 0
-        rownum = 0
-        for row in csv_reader:
-            if line_count < train_size and rownum > 0: #skip first header row
-                questions[row[0]] = tokenize(row[1])
-                labels[row[0]] = int(row[2])
-                line_count += 1
-            rownum += 1
+    train = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/train.csv',nrows=train_size)
+    train_questions = train['question_text']
+    train_labels = train[:train_size]['target']
+    train_ids = train['qid']
+    train_questions = train_questions[:train_size].apply(tokenize)
     
-    with open('kaggle/input/quora-insincere-questions-classification/test.csv',encoding="utf8") as csv_file: #add slash for comp
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        line_count = 0
-        rownum = 0
-        for row in csv_reader:
-            if line_count < 100 and rownum > 0:#skip header row 375806
-                questions[row[0]] = tokenize(row[1])
-                labels[row[0]] = int(0) #doesn't matter really... 
-                line_count += 1
-            rownum +=1
+    if readytosubmit:
+        test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv')
+    else:
+        test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv',nrows=500)
+    test_questions = test['question_text']
+    test_ids = test['qid']
+    test_questions = test_questions.apply(tokenize)
     
     
-    vocab = list(set([item for sublist in questions.values() for item in sublist]))
-    print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))   
-    return vocab, questions, labels
+    
+    
+    total_questions = pd.concat((train_questions,test_questions), axis=0)
+    vocab = list(set([item for sublist in total_questions.values for item in sublist]))
+    print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))  
+    return vocab, train_questions, train_labels, test_questions, train_ids, test_ids
 
-def get_context_vector(vocab, questions, labels):
+def get_context_vector(vocab, train_questions, train_labels, test_questions):
     '''
     Construct your n-grams: Create positive n-gram samples by collecting all pairs of adjacent
     tokens. Create 2 negative samples for each positive sample by keeping the first word the same
@@ -135,50 +132,39 @@ def get_context_vector(vocab, questions, labels):
 
     word_to_ix = {word: i for i, word in enumerate(vocab)} #index vocabulary
 
-    context_values = [] #array of word index for context 
-    for context in questions.values():
-        context_values.append([word_to_ix[w] for w in context])
-    # print(context_values)
-    
-    context_labels = [] # list of labels for context
-    for label in labels.values():
-        context_labels.append([label])
+    train_context_values = [] #array of word index for context 
+    for context in train_questions.values:
+        train_context_values.append([word_to_ix[w] for w in context])
 
-    ids = []
-    for entry in questions.keys():
-        ids.append(entry)
+    test_context_values = [] #array of word index for context 
+    for context in test_questions.values:
+        test_context_values.append([word_to_ix[w] for w in context])
     
+    train_context_labels = [] # list of labels for context
+    for label in train_labels.values:
+        train_context_labels.append([label])
+        
     #convert to numpy array for use in torch  -- padding with index 0 for padding.... Should change to a random word...
-    totalpadlength = max(map(len, context_values))
-    context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in context_values]) #needed because without badding we are lost 
-    context_label_array = np.array(context_labels) 
+    totalpadlength = 70 #max(map(len, test_context_values)) #the longest question is in the test set 
+    train_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in train_context_values]) #needed because without padding we are lost 
+    test_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in test_context_values]) #needed because without padding we are lost 
+    train_context_label_array = np.array(train_context_labels) 
 
 
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return context_array, context_label_array, ids, totalpadlength
+    return train_context_array, train_context_label_array, test_context_array, totalpadlength
 
-def run_neural_network(context_array, context_label_array, vocab_size, train_size, totalpadlength):
+def run_neural_network(context_array, context_label_array,test_context_array, test_ids, vocab_size, train_size, totalpadlength):
     '''
-    Create your training and test data: Split your generated samples into training and test sets
-    randomly. Keep 20% for testing. Use the rest for training.
-    Build and train a feed forward neural network: Build your FFNN with 2 layers (1 hidden layer and
-    1 output layer) with hidden vector size 20. Initialize the weights with random numbers.
-    Experiment with mean squared error and cross entropy as your loss function. Experiment with
-    different hidden vector sizes. Use sigmoid as the activation function and a learning rate of
-    0.00001. You must tune any parameters using cross-validation on the training data only. Once
-    you have finalized your system, you are ready to evaluate on test data.
-
-    This takes the input vectors and randomly splits it into a training, validation, and test set. Training is performed on 
-    feedforward neural net to create a langage model. This is validated and the results of the predictions on the test set is
-    provided.
+    regular FeedForward without pretrained embeddings
     '''
     
-    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 50 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
-    X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
+    X_train, y_train = context_array, context_label_array
 
-    X_test, y_test = context_array[(train_size):][:], context_label_array[(train_size):][:]
+    X_test, y_test = test_context_array, np.zeros(len(test_context_array))
 
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
                                                        random_state=1234, shuffle=True, stratify=y_train)
@@ -211,7 +197,7 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     CONTEXT_SIZE = totalpadlength # total length of padded questions size
     HIDDEN_SIZE = 20 # nodes in hidden layer
 
-    class NGramLanguageModeler(nn.Module):
+    class FeedForward(nn.Module):
         '''
         Build and train a feed forward neural network: Build your FFNN with 2 layers (1 hidden layer and
         1 output layer) with hidden vector size 20. Initialize the weights with random numbers.
@@ -222,7 +208,7 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
         too low to effectively implement in a resonable amount of time. It is set to 0.0001 for demonstration purposes. 
         '''
         def __init__(self, vocab_size, embedding_dim, context_size, hidden_size):
-            super(NGramLanguageModeler, self).__init__()
+            super(FeedForward, self).__init__()
             self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
             self.linear1 = nn.Linear(context_size * embedding_dim, hidden_size)
             self.linear2 = nn.Linear(hidden_size, 1)
@@ -243,7 +229,7 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     loss_function = nn.BCELoss() #binary cross entropy produced best results
     # Experimenting with MSE Loss
     #loss_function = nn.MSELoss()
-    model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE) #.to_fp16() for memory
+    model = FeedForward(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE) #.to_fp16() for memory
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
@@ -325,21 +311,28 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
             predictions = (yhat > 0.5)
             total += label.nelement()
             predictionsfull.extend(predictions.int().tolist())
-            labelsfull.extend(label.int().tolist())
-        f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
-        print('Test F1: {} %'.format(round(f1score,5)))
+
+    #outputs results to csv
+    predictionsfinal = []
+    for element in predictionsfull:
+        predictionsfinal.append(element[0])
+    output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+    output.columns = ['qid', 'prediction']
+    print(output.head())
+    if readytosubmit:
+        output.to_csv('samplesubmission', index=False)
     return
 
-def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, vocab, train_size,totalpadlength):
+def pretrained_embedding_run_NN(context_array, context_label_array,test_context_array, test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit):
     '''
     This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
     '''
     BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
 
     #randomly split into test and validation sets
-    X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
+    X_train, y_train = context_array, context_label_array
 
-    X_test, y_test = context_array[(train_size):][:], context_label_array[(train_size):][:]
+    X_test, y_test = test_context_array, np.zeros(len(test_context_array))
 
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
                                                        random_state=1234, shuffle=True, stratify=y_train)
@@ -407,9 +400,9 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
             emb_layer.weight.requires_grad = False
         return emb_layer, num_embeddings, embedding_dim
     
-    class NGramLanguageModeler(nn.Module):
+    class FeedForward(nn.Module):
         def __init__(self, weights_matrix, context_size):
-            super(NGramLanguageModeler, self).__init__()
+            super(FeedForward, self).__init__()
             self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
             self.linear1 = nn.Linear(embedding_dim*context_size, 1)
             self.out_act = nn.Sigmoid()
@@ -425,7 +418,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
     loss_function = nn.BCELoss() #binary cross entropy produced best results
     # Experimenting with MSE Loss
     #loss_function = nn.MSELoss()
-    model = NGramLanguageModeler(weights_matrix_torch, CONTEXT_SIZE)
+    model = FeedForward(weights_matrix_torch, CONTEXT_SIZE)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     # The random weight method isn't as effective as the default pytorch method
     #model.apply(random_weights)
@@ -509,11 +502,17 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
             predictions = (yhat > 0.5)
             total += label.nelement()
             predictionsfull.extend(predictions.int().tolist())
-            labelsfull.extend(label.int().tolist())
-        f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
-        print('Test F1: {} %'.format(round(f1score,5)))
 
-def baseline_models(context_array, context_label_array, vocab, train_size, totalpadlength):
+    #outputs results to csv
+    predictionsfinal = []
+    for element in predictionsfull:
+        predictionsfinal.append(element[0])
+    output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+    output.columns = ['qid', 'prediction']
+    print(output.head())
+    if readytosubmit:
+        output.to_csv('samplesubmission', index=False)
+def baseline_models(context_array, context_label_array,test_context_array, test_ids, vocab, train_size, totalpadlength):
     '''
     Baseline Logistic and NB using pretrained embeddings of each word as the feature vectors.
     '''
@@ -562,9 +561,9 @@ def baseline_models(context_array, context_label_array, vocab, train_size, total
     print(df.shape)
 
     #randomly split into test and validation sets
-    X_train, y_train = df[:(train_size)][:], context_label_array[:(train_size)][:]
+    X_train, y_train = context_array, context_label_array
 
-    X_test, y_test = df[(train_size):][:], context_label_array[(train_size):][:]
+    X_test, y_test = test_context_array, np.zeros(len(test_context_array))
 
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.97, 
                                                        random_state=1234, shuffle=True, stratify=y_train)
@@ -583,7 +582,7 @@ def baseline_models(context_array, context_label_array, vocab, train_size, total
 
     #do baseline models with embedding feature vectors
 
-def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpadlength):
+def run_RNN(context_array, context_label_array,test_context_array, test_ids, vocab_size, train_size, totalpadlength, readytosubmit):
     '''
     RNN version 
     '''
@@ -591,9 +590,9 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
     BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
-    X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
+    X_train, y_train = context_array, context_label_array
 
-    X_test, y_test = context_array[(train_size):][:], context_label_array[(train_size):][:]
+    X_test, y_test = test_context_array, np.zeros(len(test_context_array))
 
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
                                                        random_state=1234, shuffle=True, stratify=y_train)
@@ -766,9 +765,16 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
             predictions = (yhat > 0.5)
             total += label.nelement()
             predictionsfull.extend(predictions.int().tolist())
-            labelsfull.extend(label.int().tolist())
-        f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
-        print('Test F1: {} %'.format(round(f1score,5)))
+
+    #outputs results to csv
+    predictionsfinal = []
+    for element in predictionsfull:
+        predictionsfinal.append(element[0])
+    output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+    output.columns = ['qid', 'prediction']
+        print(output.head())
+    if readytosubmit:
+        output.to_csv('samplesubmission', index=False)
     return
 
 if __name__ == "__main__":
