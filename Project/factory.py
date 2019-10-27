@@ -31,7 +31,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn 
 import gc #garbage collector for gpu memory 
-from GPUtil import showUtilization as gpu_usage
+# from GPUtil import showUtilization as gpu_usage
 
 
 
@@ -95,7 +95,7 @@ def get_docs(train_size):
     labels = defaultdict()
     docs = []
     #laod data and tokenize
-    with open('Data/train.csv',encoding="utf8") as csv_file:
+    with open('kaggle/input/quora-insincere-questions-classification/train.csv',encoding="utf8") as csv_file: #add slash for comp
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
         rownum = 0
@@ -106,7 +106,7 @@ def get_docs(train_size):
                 line_count += 1
             rownum += 1
     
-    with open('Data/test.csv',encoding="utf8") as csv_file: 
+    with open('kaggle/input/quora-insincere-questions-classification/test.csv',encoding="utf8") as csv_file: #add slash for comp
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
         rownum = 0
@@ -371,7 +371,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
     CONTEXT_SIZE = totalpadlength #sentence size
     
     # getting embeddings from the file
-    EMBEDDING_FILE = "Embeddings/glove.6B.200d.txt"
+    EMBEDDING_FILE = "kaggle/input/quora-insincere-questions-classification/embeddings/glove.6B.200d.txt"
     embeddings_index = {}
     words = []
     with open (EMBEDDING_FILE, encoding="utf8") as f:
@@ -627,18 +627,12 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
 
     class RNNmodel(nn.Module):
         '''
-        Build and train a feed forward neural network: Build your FFNN with 2 layers (1 hidden layer and
-        1 output layer) with hidden vector size 20. Initialize the weights with random numbers.
-        Experiment with mean squared error and cross entropy as your loss function.
-        Creates a Ngram based feedforward neural network with an embeddings layer, 1 hidden layer of 'hidden_size' units (20 in
-        this case seemed to work best- changing to higher values had litte improvmeent), and a single output unit for 
-        binary classification. Sigmoid activation function is used to obtain a percentage. Learning rate of .00001 was 
-        too low to effectively implement in a resonable amount of time. It is set to 0.0001 for demonstration purposes. 
+        LSTM 
         '''
         def __init__(self, vocab_size, embedding_dim, context_size, hidden_size):
             super(RNNmodel, self).__init__()
             self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
-            self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True)
+            self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True)
             self.linear = nn.Linear(hidden_size*context_size, 1)
             self.out_act = nn.Sigmoid()
     
