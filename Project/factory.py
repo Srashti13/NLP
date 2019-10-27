@@ -173,7 +173,7 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     provided.
     '''
     
-    BATCH_SIZE = 5000 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, y_train = context_array[:(train_size)][:], context_label_array[:(train_size)][:]
@@ -246,7 +246,7 @@ def run_neural_network(context_array, context_label_array, vocab_size, train_siz
     model = NGramLanguageModeler(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE) #.to_fp16() for memory
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.1) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
@@ -437,7 +437,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array, vocab_size, 
     f1_list = []
     best_f1 = 0 
     print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(2): 
+    for epoch in range(50): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -639,20 +639,50 @@ def run_RNN(context_array, context_label_array, vocab_size, train_size, totalpad
             super(RNNmodel, self).__init__()
             self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
             self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True)
-            self.linear = nn.Linear(hidden_size, 1)
+            self.linear = nn.Linear(hidden_size*context_size, 1)
             self.out_act = nn.Sigmoid()
     
         def forward(self, inputs, context_size, embedding_dim):
-            embeds = self.embeddings(inputs) #required dimensions for batching 
-            print(embeds.shape)
-            out1, _ = self.rnn(embeds)
+            embeds = self.embeddings(inputs) # [batch, seq, embed dim]
+            # print(embeds.shape)
+            # print(embeds[0,:3,:3])
+            out1, _ = self.rnn(embeds) # [batch, seq_len, num_directions * hidden_size]
             # print(out1.shape)
-            out2 = self.linear(out1[:,-1,:])
+            # print(out1[:,-1,:].shape)
+            out1 = torch.cat([out1[:,:,i] for i in range(out1.shape[2])], dim=1)
+            out2 = self.linear(out1) # -> batch size, embed
             # print(out2.shape)
             yhat = self.out_act(out2)
             # print(yhat)
             return yhat
             
+        # def __init__(self, vocab_size, embedding_dim, context_size, hidden_size):
+        #     super(RNNmodel, self).__init__()
+        #     self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
+        #     self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True)
+        #     self.linear = nn.Linear(hidden_size*hidden_size, 1)
+        #     self.out_act = nn.Sigmoid()
+    
+        # def forward(self, inputs, context_size, embedding_dim):
+        #     embeds = self.embeddings(inputs) # [batch, seq, embed dim]
+
+        #     #packing
+        #     input_packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, 61, batch_first=True)
+
+        #     # print(embeds.shape)
+        #     # print(embeds[0,:3,:3])
+        #     raw_output, _ = self.rnn(input_packed) # [batch, seq_len, num_directions * hidden_size]
+            
+        #     output_padded, _ = torch.nn.utils.rnn.pad_packed_sequence(raw_output,total_length=context_size,batch_first=True)
+        #     output = output_padded.contiguous()
+        #     output_reshaped = output.view(output.shape[0], -1)
+        #     # print(out1.shape)
+        #     # print(out1[:,-1,:].shape)
+        #     out2 = self.linear(output_reshaped) # -> batch size, embed dim
+        #     # print(out2.shape)
+        #     yhat = self.out_act(out2)
+        #     print(yhat)
+        #     return yhat
     #initalize model parameters and variables
     losses = []
     loss_function = nn.BCELoss() #binary cross entropy produced best results
