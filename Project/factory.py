@@ -44,8 +44,8 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    train_size = 100000 #1306112 is full dataset
-    readytosubmit=False
+    train_size = 1000 #1306112 is full dataset
+    readytosubmit=True
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
     train_context_array, train_context_label_array, test_context_array, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions)
@@ -145,7 +145,7 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions):
         train_context_labels.append([label])
         
     #convert to numpy array for use in torch  -- padding with index 0 for padding.... Should change to a random word...
-    totalpadlength = 70 #max(map(len, test_context_values)) #the longest question is in the test set 
+    totalpadlength = max(max(map(len, train_context_values)),max(map(len, test_context_values))) #the longest question 
     train_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in train_context_values]) #needed because without padding we are lost 
     test_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in test_context_values]) #needed because without padding we are lost 
     train_context_label_array = np.array(train_context_labels) 
@@ -320,7 +320,7 @@ def run_neural_network(context_array, context_label_array,test_context_array, te
     output.columns = ['qid', 'prediction']
     print(output.head())
     if readytosubmit:
-        output.to_csv('/samplesubmission', index=False)
+        output.to_csv('samplesubmission', index=False)
     return
 
 def pretrained_embedding_run_NN(context_array, context_label_array,test_context_array, test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit):
