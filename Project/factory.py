@@ -52,8 +52,8 @@ def main():
     unique, cnts = np.unique(train_context_label_array, return_counts=True)
     print(dict(zip(unique, cnts)))
     run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit)
-    pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit)
-    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit)
+    # pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit)
+    # run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit)
     # baseline_models(train_context_array, train_context_label_array,test_context_array,test_ids, vocab, train_size, totalpadlength)
     return
 
@@ -154,12 +154,12 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions):
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
     return train_context_array, train_context_label_array, test_context_array, totalpadlength
 
-def run_neural_network(context_array, context_label_array,test_context_array, test_ids, vocab_size, train_size, totalpadlength):
+def run_neural_network(context_array, context_label_array,test_context_array, test_ids, vocab_size, train_size, totalpadlength, readytosubmit):
     '''
     regular FeedForward without pretrained embeddings
     '''
     
-    BATCH_SIZE = 50 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 5000 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, y_train = context_array, context_label_array
