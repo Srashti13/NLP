@@ -320,7 +320,7 @@ def run_neural_network(context_array, context_label_array,test_context_array, te
     output.columns = ['qid', 'prediction']
     print(output.head())
     if readytosubmit:
-        output.to_csv('samplesubmission', index=False)
+        output.to_csv('/kaggle/output/samplesubmission', index=False)
     return
 
 def pretrained_embedding_run_NN(context_array, context_label_array,test_context_array, test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit):
@@ -511,7 +511,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array,test_context_
     output.columns = ['qid', 'prediction']
     print(output.head())
     if readytosubmit:
-        output.to_csv('samplesubmission', index=False)
+        output.to_csv('/kaggle/output/samplesubmission', index=False)
 def baseline_models(context_array, context_label_array,test_context_array, test_ids, vocab, train_size, totalpadlength):
     '''
     Baseline Logistic and NB using pretrained embeddings of each word as the feature vectors.
@@ -772,9 +772,9 @@ def run_RNN(context_array, context_label_array,test_context_array, test_ids, voc
         predictionsfinal.append(element[0])
     output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
     output.columns = ['qid', 'prediction']
-        print(output.head())
+    print(output.head())
     if readytosubmit:
-        output.to_csv('samplesubmission', index=False)
+        output.to_csv('/kaggle/output/samplesubmission', index=False)
     return
 
 if __name__ == "__main__":
