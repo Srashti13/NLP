@@ -44,17 +44,18 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    readytosubmit=True
-    train_size = 1306112 #1306112 is full dataset
-
+    readytosubmit=False
+    train_size = 500 #1306112 is full dataset
+    erroranalysis = True
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
-    train_context_array, train_context_label_array, test_context_array, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions)
-    unique, cnts = np.unique(train_context_label_array, return_counts=True)
+    train_context_array, train_context_label_array, test_context_array, totalpadlength, wordindex, vocab = get_context_vector(vocab, train_questions, train_labels, test_questions)
+    unique, cnts = np.unique(train_context_label_array, return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
-    run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit)
-    # pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit)
-    # run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE)
+    # run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit, erroranalysis, wordindex)
+    # pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit,erroranalysis, wordindex)
+    RNNTYPE = "LSTM"
+    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
     return
 
 def get_docs(train_size, readytosubmit):
@@ -129,8 +130,10 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions):
     This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
     --creates 2 fake grams for every real gram 
     '''
-
-    word_to_ix = {word: i for i, word in enumerate(vocab)} #index vocabulary
+    import operator
+    word_to_ix = {word: i+1 for i, word in enumerate(vocab)} #index vocabulary
+    word_to_ix['XXPADXX'] = 0 #set up padding
+    vocab.append('XXPADXX')
 
     train_context_values = [] #array of word index for context 
     for context in train_questions.values:
@@ -150,16 +153,27 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions):
     test_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in test_context_values]) #needed because without padding we are lost 
     train_context_label_array = np.array(train_context_labels) 
 
+    #used to back convert to words from index
+    ix_to_word = {} 
+    for key, value in word_to_ix.items(): 
+        if value in ix_to_word: 
+            ix_to_word[value].append(key) 
+            print(value)
+            print(key)
+            print(ix_to_word[value])
+        else: 
+            ix_to_word[value]=[key] 
 
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return train_context_array, train_context_label_array, test_context_array, totalpadlength
+    return train_context_array, train_context_label_array, test_context_array, totalpadlength, ix_to_word, vocab
 
-def run_neural_network(context_array, context_label_array,test_context_array, test_ids, vocab_size, train_size, totalpadlength, readytosubmit):
+def run_neural_network(context_array, context_label_array,test_context_array, test_ids, 
+vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex):
     '''
     regular FeedForward without pretrained embeddings
     '''
     
-    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 50 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, y_train = context_array, context_label_array
@@ -212,6 +226,7 @@ def run_neural_network(context_array, context_label_array,test_context_array, te
         '''
         def __init__(self, vocab_size, embedding_dim, context_size, hidden_size):
             super(FeedForward, self).__init__()
+            print('----Using Feed Forward----')
             self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
             self.linear1 = nn.Linear(context_size * embedding_dim, hidden_size)
             self.linear2 = nn.Linear(hidden_size, 1)
@@ -223,8 +238,6 @@ def run_neural_network(context_array, context_label_array,test_context_array, te
             out3 = self.linear2(out1)
             yhat = self.out_act(out3)
             return yhat
-
-    
 
             
     #initalize model parameters and variables
@@ -299,21 +312,45 @@ def run_neural_network(context_array, context_label_array,test_context_array, te
                 break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
-    # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
+
+    #error analysis if desired
+    if erroranalysis:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            contextsfull = []
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(validloader):
+                for (k, element) in enumerate(context): #per batch
+                    contextsfull.append(" ".join(list(itertools.chain.from_iterable([wordindex[x] for x in context[k].tolist()]))))
+                    labelsfull.extend(label.int().tolist())
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = yhat.view(-1,1)
+                predictions = (yhat > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+        #print 20 errors 
+        printed = 0
+        for (i, pred) in enumerate(predictionsfull):
+            if pred != labelsfull[i]:
+                if printed < 20:
+                    print(' '.join([word for word in contextsfull[i].split() if word not in ['XXPADXX']]))
+                    print('predicted: %s' % (pred))
+                    print('labeled: %s' % (labelsfull[i]))
+                    printed +=1
+
+    # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE 
     if readytosubmit:
         model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
         with torch.no_grad():
-            total = 0
-            num_correct = 0
             predictionsfull = []
-            labelsfull = []
             for a, (context, label) in enumerate(testloader):
                 context = context.to(device)
                 label = label.to(device)
                 yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
                 yhat = yhat.view(-1,1)
                 predictions = (yhat > 0.5)
-                total += label.nelement()
                 predictionsfull.extend(predictions.int().tolist())
 
         #outputs results to csv
@@ -326,7 +363,8 @@ def run_neural_network(context_array, context_label_array,test_context_array, te
         output.to_csv('submission', index=False)
     return
 
-def pretrained_embedding_run_NN(context_array, context_label_array,test_context_array, test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit):
+def pretrained_embedding_run_NN(context_array, context_label_array,test_context_array, 
+test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranalysis, wordindex):
     '''
     This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
     '''
@@ -410,6 +448,7 @@ def pretrained_embedding_run_NN(context_array, context_label_array,test_context_
     class FeedForward(nn.Module):
         def __init__(self, weights_matrix, context_size):
             super(FeedForward, self).__init__()
+            print('----Using Feed Forward (Pre-trained Embeddings)----')
             self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
             self.linear1 = nn.Linear(embedding_dim*context_size, 1)
             self.out_act = nn.Sigmoid()
@@ -494,21 +533,45 @@ def pretrained_embedding_run_NN(context_array, context_label_array,test_context_
                 break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
-    if readytosubmit:
-        # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
+
+    #error analysis if desired
+    if erroranalysis:
         model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
         with torch.no_grad():
-            total = 0
-            num_correct = 0
+            contextsfull = []
             predictionsfull = []
             labelsfull = []
+            for a, (context, label) in enumerate(validloader):
+                for (k, element) in enumerate(context): #per batch
+                    contextsfull.append(" ".join(list(itertools.chain.from_iterable([wordindex[x] for x in context[k].tolist()]))))
+                    labelsfull.extend(label.int().tolist())
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = yhat.view(-1,1)
+                predictions = (yhat > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+        #print 20 errors 
+        printed = 0
+        for (i, pred) in enumerate(predictionsfull):
+            if pred != labelsfull[i]:
+                if printed < 20:
+                    print(' '.join([word for word in contextsfull[i].split() if word not in ['XXPADXX']]))
+                    print('predicted: %s' % (pred))
+                    print('labeled: %s' % (labelsfull[i]))
+                    printed +=1
+
+    if readytosubmit:
+        # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            predictionsfull = []
             for a, (context, label) in enumerate(testloader):
                 context = context.to(device)
                 label = label.to(device)
                 yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
                 yhat = yhat.view(-1,1)
                 predictions = (yhat > 0.5)
-                total += label.nelement()
                 predictionsfull.extend(predictions.int().tolist())
 
         #outputs results to csv
@@ -521,10 +584,8 @@ def pretrained_embedding_run_NN(context_array, context_label_array,test_context_
         output.to_csv('submission', index=False)
     return
 
-
-    #do baseline models with embedding feature vectors
-
-def run_RNN(context_array, context_label_array,test_context_array, test_ids, vocab_size, train_size, totalpadlength, readytosubmit, RNNTYPE):
+def run_RNN(context_array, context_label_array,test_context_array, test_ids, vocab_size, 
+train_size, totalpadlength, readytosubmit, RNNTYPE,erroranalysis, wordindex):
     '''
     RNN version 
     '''
@@ -577,10 +638,10 @@ def run_RNN(context_array, context_label_array,test_context_array, test_ids, voc
         def __init__(self, vocab_size, embedding_dim, context_size, hidden_size, RNNTYPE="LSTM"):
             super(RNNmodel, self).__init__()
             self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
-            if RNN=="LSTM":
+            if RNNTYPE=="LSTM":
                 print("----Using LSTM-----")
                 self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True)
-            elif RNN=="GRU":
+            elif RNNTYPE=="GRU":
                 print("----Using GRU-----")
                 self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True)
             else:
@@ -698,28 +759,54 @@ def run_RNN(context_array, context_label_array,test_context_array, test_ids, voc
         if f1_list[-1] > best_f1: #save if it improves validation accuracy 
             best_f1 = f1_list[-1]
             bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
-        # #early stopping condition
-        # if epoch+1 >= 5: #start looking to stop after this many epochs
-        #     if f1_list[-1] < min(f1_list[-5:-1]): #if accuracy lower than lowest of last 4 values
-        #         print('...Stopping Early...')
-        #         break
+        #early stopping condition
+        if epoch+1 >= 5: #start looking to stop after this many epochs
+            if f1_list[-1] < min(f1_list[-5:-1]): #if accuracy lower than lowest of last 4 values
+                print('...Stopping Early...')
+                break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
+
+    #error analysis if desired
+    if erroranalysis:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            contextsfull = []
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(validloader):
+                for (k, element) in enumerate(context): #per batch
+                    contextsfull.append(" ".join(list(itertools.chain.from_iterable([wordindex[x] for x in context[k].tolist()]))))
+                    labelsfull.extend(label.int().tolist())
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = yhat.view(-1,1)
+                predictions = (yhat > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+        #print 20 errors 
+        printed = 0
+        for (i, pred) in enumerate(predictionsfull):
+            if pred != labelsfull[i]:
+                if printed < 20:
+                    print(' '.join([word for word in contextsfull[i].split() if word not in ['XXPADXX']]))
+                    print('predicted: %s' % (pred))
+                    print('labeled: %s' % (labelsfull[i]))
+                    printed +=1
+
     if readytosubmit:
-        # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
+        # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE 
         model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
         with torch.no_grad():
             total = 0
             num_correct = 0
             predictionsfull = []
-            labelsfull = []
             for a, (context, label) in enumerate(testloader):
                 context = context.to(device)
                 label = label.to(device)
                 yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
                 yhat = yhat.view(-1,1)
                 predictions = (yhat > 0.5)
-                total += label.nelement()
                 predictionsfull.extend(predictions.int().tolist())
 
         #outputs results to csv
