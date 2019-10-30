@@ -44,8 +44,9 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    train_size = 1000 #1306112 is full dataset
     readytosubmit=True
+    train_size = 1306112 #1306112 is full dataset
+
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
     train_context_array, train_context_label_array, test_context_array, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions)
@@ -53,8 +54,7 @@ def main():
     print(dict(zip(unique, cnts)))
     run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit)
     # pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit)
-    # run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit)
-    # baseline_models(train_context_array, train_context_label_array,test_context_array,test_ids, vocab, train_size, totalpadlength)
+    # run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE)
     return
 
 def get_docs(train_size, readytosubmit):
@@ -97,22 +97,22 @@ def get_docs(train_size, readytosubmit):
     labels = defaultdict()
     docs = []
     #laod data and tokenize
-    train = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/train.csv',nrows=train_size)
+    if readytosubmit:
+        train = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/train.csv')
+    else:
+        train = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/train.csv',nrows=train_size)
     train_questions = train['question_text']
-    train_labels = train[:train_size]['target']
+    train_labels = train['target']
     train_ids = train['qid']
-    train_questions = train_questions[:train_size].apply(tokenize)
+    train_questions = train_questions.apply(tokenize)
     
     if readytosubmit:
         test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv')
     else:
-        test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv',nrows=500)
+        test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv',nrows=10) #doesnt matter
     test_questions = test['question_text']
     test_ids = test['qid']
     test_questions = test_questions.apply(tokenize)
-    
-    
-    
     
     total_questions = pd.concat((train_questions,test_questions), axis=0)
     vocab = list(set([item for sublist in total_questions.values for item in sublist]))
@@ -159,16 +159,19 @@ def run_neural_network(context_array, context_label_array,test_context_array, te
     regular FeedForward without pretrained embeddings
     '''
     
-    BATCH_SIZE = 5000 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, y_train = context_array, context_label_array
 
     X_test, y_test = test_context_array, np.zeros(len(test_context_array))
 
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
-                                                       random_state=1234, shuffle=True, stratify=y_train)
-    
+    if readytosubmit:
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.02, 
+                                                            random_state=1234, shuffle=True, stratify=y_train)
+    else:
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+                                                            random_state=1234, shuffle=True, stratify=y_train)
     #set datatypes 
     X_train = torch.from_numpy(X_train)
     X_train = X_train.long()
@@ -297,30 +300,30 @@ def run_neural_network(context_array, context_label_array,test_context_array, te
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
     # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
-    model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
-    with torch.no_grad():
-        total = 0
-        num_correct = 0
-        predictionsfull = []
-        labelsfull = []
-        for a, (context, label) in enumerate(testloader):
-            context = context.to(device)
-            label = label.to(device)
-            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
-            yhat = yhat.view(-1,1)
-            predictions = (yhat > 0.5)
-            total += label.nelement()
-            predictionsfull.extend(predictions.int().tolist())
-
-    #outputs results to csv
-    predictionsfinal = []
-    for element in predictionsfull:
-        predictionsfinal.append(element[0])
-    output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
-    output.columns = ['qid', 'prediction']
-    print(output.head())
     if readytosubmit:
-        output.to_csv('samplesubmission', index=False)
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            total = 0
+            num_correct = 0
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(testloader):
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = yhat.view(-1,1)
+                predictions = (yhat > 0.5)
+                total += label.nelement()
+                predictionsfull.extend(predictions.int().tolist())
+
+        #outputs results to csv
+        predictionsfinal = []
+        for element in predictionsfull:
+            predictionsfinal.append(element[0])
+        output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+        output.columns = ['qid', 'prediction']
+        print(output.head())
+        output.to_csv('submission', index=False)
     return
 
 def pretrained_embedding_run_NN(context_array, context_label_array,test_context_array, test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit):
@@ -334,8 +337,12 @@ def pretrained_embedding_run_NN(context_array, context_label_array,test_context_
 
     X_test, y_test = test_context_array, np.zeros(len(test_context_array))
 
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
-                                                       random_state=1234, shuffle=True, stratify=y_train)
+    if readytosubmit:
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.02, 
+                                                            random_state=1234, shuffle=True, stratify=y_train)
+    else:
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+                                                            random_state=1234, shuffle=True, stratify=y_train)
     
     #set datatypes 
     X_train = torch.from_numpy(X_train)
@@ -487,102 +494,37 @@ def pretrained_embedding_run_NN(context_array, context_label_array,test_context_
                 break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
-    # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
-    model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
-    with torch.no_grad():
-        total = 0
-        num_correct = 0
-        predictionsfull = []
-        labelsfull = []
-        for a, (context, label) in enumerate(testloader):
-            context = context.to(device)
-            label = label.to(device)
-            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
-            yhat = yhat.view(-1,1)
-            predictions = (yhat > 0.5)
-            total += label.nelement()
-            predictionsfull.extend(predictions.int().tolist())
-
-    #outputs results to csv
-    predictionsfinal = []
-    for element in predictionsfull:
-        predictionsfinal.append(element[0])
-    output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
-    output.columns = ['qid', 'prediction']
-    print(output.head())
     if readytosubmit:
-        output.to_csv('samplesubmission', index=False)
-def baseline_models(context_array, context_label_array,test_context_array, test_ids, vocab, train_size, totalpadlength):
-    '''
-    Baseline Logistic and NB using pretrained embeddings of each word as the feature vectors.
-    '''
-    print("--- Building Embedding Index --- %s seconds ---" % (round((time.time() - start_time),2)))
-    #get embedding DFs from context array
-    EMBEDDING_DIM = 200 # embeddings dimensions
-    
-    # getting embeddings from the file
-    EMBEDDING_FILE = "Embeddings/glove.6B.200d.txt"
-    embeddings_index = {}
-    words = []
-    with open (EMBEDDING_FILE, encoding="utf8") as f:
-        for line in f:
-            values = line.split()
-            word = values[0]
-            words.append(word)
-            embedding = np.asarray(values[1:], dtype='float32')
-            embeddings_index[word] = embedding
+        # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            total = 0
+            num_correct = 0
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(testloader):
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = yhat.view(-1,1)
+                predictions = (yhat > 0.5)
+                total += label.nelement()
+                predictionsfull.extend(predictions.int().tolist())
 
-    matrix_len = len(vocab)
-    weights_matrix = np.zeros((matrix_len, EMBEDDING_DIM)) # 200 is depth of embedding matrix
-    words_found = 0
-    words_not_found = 0
-    for i, word in enumerate(vocab):
-        try:
-            weights_matrix[i] = embeddings_index[word]
-            words_found += 1
-        
-        except KeyError:
-            weights_matrix[i] = np.random.normal(scale=0.6, size=(EMBEDDING_DIM,)) #randomize out of vocabulary words
-            words_not_found += 1
-    
-    print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
-    
-    weights_matrix  #embedding given word
-    average_weights = np.mean(weights_matrix,axis=1)
-    del weights_matrix
-    df = []
-    for x in np.nditer(context_array):
-        avgvalue = average_weights[x]
-        df.extend([str(avgvalue)]) #mean of embeddings to save memory
-
-    # print(df) # context array with embeddings as features instead
-    df = np.asarray(df).astype(np.float)
-    df = df.reshape((len(context_array),totalpadlength)) #reshape to number of questions by  number of words
-    print(df.shape)
-
-    #randomly split into test and validation sets
-    X_train, y_train = context_array, context_label_array
-
-    X_test, y_test = test_context_array, np.zeros(len(test_context_array))
-
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.97, 
-                                                       random_state=1234, shuffle=True, stratify=y_train)
-    print("--- Start Training (Baselines) --- %s seconds ---" % (round((time.time() - start_time),2)))
-
-    from sklearn.naive_bayes import GaussianNB
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.model_selection import cross_val_score
-
-    NB_scores = cross_val_score(GaussianNB(), X_train, y_train.ravel(), cv=2, scoring="f1_macro")   #could also use x_small
-    print(NB_scores)
-    
-    LR_scores = cross_val_score(LogisticRegression(n_jobs=-1,max_iter=300, solver='lbfgs'), X_train, y_train.ravel(), cv=2, scoring="f1_macro")   
-    print(LR_scores)
+        #outputs results to csv
+        predictionsfinal = []
+        for element in predictionsfull:
+            predictionsfinal.append(element[0])
+        output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+        output.columns = ['qid', 'prediction']
+        print(output.head())
+        output.to_csv('submission', index=False)
     return
+
 
     #do baseline models with embedding feature vectors
 
-def run_RNN(context_array, context_label_array,test_context_array, test_ids, vocab_size, train_size, totalpadlength, readytosubmit):
+def run_RNN(context_array, context_label_array,test_context_array, test_ids, vocab_size, train_size, totalpadlength, readytosubmit, RNNTYPE):
     '''
     RNN version 
     '''
@@ -594,8 +536,12 @@ def run_RNN(context_array, context_label_array,test_context_array, test_ids, voc
 
     X_test, y_test = test_context_array, np.zeros(len(test_context_array))
 
-    X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
-                                                       random_state=1234, shuffle=True, stratify=y_train)
+    if readytosubmit:
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.02, 
+                                                            random_state=1234, shuffle=True, stratify=y_train)
+    else:
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+                                                            random_state=1234, shuffle=True, stratify=y_train)
     
     #set datatypes 
     X_train = torch.from_numpy(X_train)
@@ -620,18 +566,26 @@ def run_RNN(context_array, context_label_array,test_context_array, test_ids, voc
     testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
 
     #edit as deisred
-    EMBEDDING_DIM = 25 # embeddings dimensions
+    EMBEDDING_DIM = 300 # embeddings dimensions
     CONTEXT_SIZE = totalpadlength # total length of padded questions size
-    HIDDEN_SIZE = 40 # nodes in hidden layer
+    HIDDEN_SIZE = 70 # nodes in hidden layer
 
     class RNNmodel(nn.Module):
         '''
         LSTM 
         '''
-        def __init__(self, vocab_size, embedding_dim, context_size, hidden_size):
+        def __init__(self, vocab_size, embedding_dim, context_size, hidden_size, RNNTYPE="LSTM"):
             super(RNNmodel, self).__init__()
             self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
-            self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True)
+            if RNN=="LSTM":
+                print("----Using LSTM-----")
+                self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True)
+            elif RNN=="GRU":
+                print("----Using GRU-----")
+                self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True)
+            else:
+                print("----Using RNN-----")
+                self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True)
             self.linear = nn.Linear(hidden_size*context_size, 1)
             self.out_act = nn.Sigmoid()
     
@@ -676,12 +630,13 @@ def run_RNN(context_array, context_label_array,test_context_array, test_ids, voc
         #     yhat = self.out_act(out2)
         #     print(yhat)
         #     return yhat
+
     #initalize model parameters and variables
     losses = []
     loss_function = nn.BCELoss() #binary cross entropy produced best results
     # Experimenting with MSE Loss
     #loss_function = nn.MSELoss()
-    model = RNNmodel(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE) #.to_fp16() for memory
+    model = RNNmodel(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE,RNNTYPE) #.to_fp16() for memory
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=0.1) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
@@ -750,31 +705,31 @@ def run_RNN(context_array, context_label_array,test_context_array, test_ids, voc
         #         break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
-    # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
-    model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
-    with torch.no_grad():
-        total = 0
-        num_correct = 0
-        predictionsfull = []
-        labelsfull = []
-        for a, (context, label) in enumerate(testloader):
-            context = context.to(device)
-            label = label.to(device)
-            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
-            yhat = yhat.view(-1,1)
-            predictions = (yhat > 0.5)
-            total += label.nelement()
-            predictionsfull.extend(predictions.int().tolist())
-
-    #outputs results to csv
-    predictionsfinal = []
-    for element in predictionsfull:
-        predictionsfinal.append(element[0])
-    output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
-    output.columns = ['qid', 'prediction']
-    print(output.head())
     if readytosubmit:
-        output.to_csv('samplesubmission', index=False)
+        # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE --IGNORE THIS
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            total = 0
+            num_correct = 0
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(testloader):
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = yhat.view(-1,1)
+                predictions = (yhat > 0.5)
+                total += label.nelement()
+                predictionsfull.extend(predictions.int().tolist())
+
+        #outputs results to csv
+        predictionsfinal = []
+        for element in predictionsfull:
+            predictionsfinal.append(element[0])
+        output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+        output.columns = ['qid', 'prediction']
+        print(output.head())
+        output.to_csv('submission', index=False)
     return
 
 if __name__ == "__main__":
