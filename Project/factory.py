@@ -55,7 +55,7 @@ def main():
     unique, cnts = np.unique(train_context_label_array, return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
     run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit, erroranalysis, wordindex)
-    pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit,erroranalysis, wordindex)
+    # pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit,erroranalysis, wordindex)
     RNNTYPE = "RNN"
     run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
     RNNTYPE = "GRU"
@@ -265,7 +265,7 @@ vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex)
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(10): 
+    for epoch in range(5): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -486,7 +486,7 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
     f1_list = []
     best_f1 = 0 
     print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(10): 
+    for epoch in range(2): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -717,7 +717,7 @@ train_size, totalpadlength, readytosubmit, RNNTYPE,erroranalysis, wordindex):
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(10): 
+    for epoch in range(2): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
