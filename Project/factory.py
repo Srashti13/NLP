@@ -32,6 +32,8 @@ import torch.optim as optim
 import torch.nn as nn 
 import pandas as pd
 import gc #garbage collector for gpu memory 
+from tqdm import tqdm
+
 # from GPUtil import showUtilization as gpu_usage
 
 
@@ -109,7 +111,9 @@ def get_docs(train_size, readytosubmit):
     train_questions = train['question_text']
     train_labels = train['target']
     train_ids = train['qid']
-    train_questions = train_questions.apply(tokenize)
+    tqdm.pandas()
+    print("----Tokenizing Train Questions----")
+    train_questions = train_questions.progress_apply(tokenize)
     
     if readytosubmit:
         test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv')
@@ -117,7 +121,9 @@ def get_docs(train_size, readytosubmit):
         test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv',nrows=10) #doesnt matter
     test_questions = test['question_text']
     test_ids = test['qid']
-    test_questions = test_questions.apply(tokenize)
+    tqdm.pandas()
+    print("----Tokenizing Test Questions----")
+    test_questions = test_questions.progress_apply(tokenize)
     
     total_questions = pd.concat((train_questions,test_questions), axis=0)
     vocab = list(set([item for sublist in total_questions.values for item in sublist]))
@@ -214,7 +220,7 @@ vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex)
     
     
     #edit as deisred
-    EMBEDDING_DIM = 100 # embeddings dimensions
+    EMBEDDING_DIM = 300 # embeddings dimensions
     CONTEXT_SIZE = totalpadlength # total length of padded questions size
     HIDDEN_SIZE = 70 # nodes in hidden layer
 
@@ -364,7 +370,7 @@ vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex)
         output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
         output.columns = ['qid', 'prediction']
         print(output.head())
-        output.to_csv('submission', index=False)
+        output.to_csv('submission.csv', index=False)
     return
 
 def pretrained_embedding_run_NN(context_array, context_label_array,test_context_array, 
@@ -585,7 +591,7 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
         output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
         output.columns = ['qid', 'prediction']
         print(output.head())
-        output.to_csv('submission', index=False)
+        output.to_csv('submission.csv', index=False)
     return
 
 def run_RNN(context_array, context_label_array,test_context_array, test_ids, vocab_size, 
@@ -631,7 +637,7 @@ train_size, totalpadlength, readytosubmit, RNNTYPE,erroranalysis, wordindex):
     testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
 
     #edit as deisred
-    EMBEDDING_DIM = 100 # embeddings dimensions
+    EMBEDDING_DIM = 300 # embeddings dimensions
     CONTEXT_SIZE = totalpadlength # total length of padded questions size
     HIDDEN_SIZE = 70 # nodes in hidden layer
 
@@ -704,7 +710,7 @@ train_size, totalpadlength, readytosubmit, RNNTYPE,erroranalysis, wordindex):
     model = RNNmodel(vocab_size, EMBEDDING_DIM, CONTEXT_SIZE, HIDDEN_SIZE,RNNTYPE) #.to_fp16() for memory
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.1) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.Adam(model.parameters(), lr=0.001) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
@@ -820,7 +826,7 @@ train_size, totalpadlength, readytosubmit, RNNTYPE,erroranalysis, wordindex):
         output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
         output.columns = ['qid', 'prediction']
         print(output.head())
-        output.to_csv('submission', index=False)
+        output.to_csv('submission.csv', index=False)
     return
 
 if __name__ == "__main__":
