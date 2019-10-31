@@ -1,0 +1,371 @@
+--- Start Program --- 0.0 seconds ---
+--- Text Extracted --- 134.33 seconds ---
+--- Grams Created --- 149.95 seconds ---
+{0: 1225303, 1: 80809}
+----Using Feed Forward----
+Start Training --- 156.71 seconds ---
+--- Epoch: 1 | Validation F1: 0.5208204999849315 ---
+--- Epoch: 2 | Validation F1: 0.5408727355205434 ---
+--- Epoch: 3 | Validation F1: 0.5536779083742176 ---
+--- Epoch: 4 | Validation F1: 0.5611910601619877 ---
+--- Epoch: 5 | Validation F1: 0.5657575835040467 ---
+--- Epoch: 6 | Validation F1: 0.5692505739794226 ---
+--- Epoch: 7 | Validation F1: 0.5712048186532077 ---
+--- Epoch: 8 | Validation F1: 0.5738617729037895 ---
+--- Epoch: 9 | Validation F1: 0.5747697297852163 ---
+--- Epoch: 10 | Validation F1: 0.5762860163879246 ---
+Training Complete --- 531.36 seconds ---
+i made my son drink a bit of soap am i too easy on him
+predicted: [0]
+labeled: [1]
+why did mi kill russian spy all facts point at mi they didnt change id of that man they placed him in salisbury thats where england develops sarin other chemicals
+predicted: [0]
+labeled: [1]
+what is so special about black people makes them require black representation in europe when they are ethnic minority in these countries too
+predicted: [0]
+labeled: [1]
+will donald trump ever be impeached or this is just dems false accusations because thus far nothing concrete
+predicted: [0]
+labeled: [1]
+are women without vaginas useless
+predicted: [0]
+labeled: [1]
+but why do nigerian ladies put on chain
+predicted: [0]
+labeled: [1]
+why nazi didn ’ t feed there prisoners with human flesh
+predicted: [0]
+labeled: [1]
+shouldnt we ban transgender surgery people are starving to death but they waste money with their nonsense
+predicted: [0]
+labeled: [1]
+why dont we need borokabama
+predicted: [0]
+labeled: [1]
+is pence a right wing christian wack job
+predicted: [0]
+labeled: [1]
+why are people afraid to speak about god even when they know god is real there is a god somewhere
+predicted: [0]
+labeled: [1]
+why do indian sikhs are crying for control of gurdwara in pakistan in daily ardas are pakistani sikhs also crying for control of gurdwara in hindustan why their waheguru is not happy with their ardas
+predicted: [1]
+labeled: [0]
+why is it okay to kill unborn children but wrong to kill convicted murderers
+predicted: [0]
+labeled: [1]
+has prophet muhammad used muslims as slaves to grow his name all over the world
+predicted: [0]
+labeled: [1]
+how do i forcibly convert all hindus to sunni islam
+predicted: [0]
+labeled: [1]
+why are indians too egotistical
+predicted: [0]
+labeled: [1]
+when we assess a transgender individual we can draw only of possible conclusions either they were born with the wrong brain or the wrong body why do we have to pretend like nothing went wrong in their pre natal development
+predicted: [0]
+labeled: [1]
+is there such a thing as a gay prolife progun progod propot constitutional constructionist conservative or am i the only one
+predicted: [0]
+labeled: [1]
+why cant muslims leave me alone and not harass me for being a homosexual woman should i leave islam because of this torture
+predicted: [0]
+labeled: [1]
+will there still be a single country where white race will be a majority by
+predicted: [0]
+labeled: [1]
+--- Building Pretrained Embedding Index  --- 590.71 seconds ---
+45.27% (104240/230239) of the vocabulary were in the pre-trained embedding.
+----Using Feed Forward (Pre-trained Embeddings)----
+Start Training (Pre-trained) --- 611.06 seconds ---
+--- Epoch: 1 | Validation F1: 0.5358392795601686 ---
+--- Epoch: 2 | Validation F1: 0.5556731723992068 ---
+--- Epoch: 3 | Validation F1: 0.5682352514316661 ---
+--- Epoch: 4 | Validation F1: 0.5758894964270733 ---
+--- Epoch: 5 | Validation F1: 0.5812279277066452 ---
+--- Epoch: 6 | Validation F1: 0.5854656550723716 ---
+--- Epoch: 7 | Validation F1: 0.5879484080512756 ---
+--- Epoch: 8 | Validation F1: 0.5907703201660273 ---
+--- Epoch: 9 | Validation F1: 0.5927770397705705 ---
+--- Epoch: 10 | Validation F1: 0.59463898356855 ---
+Training Complete --- 860.75 seconds ---
+why do bhakts spread fake news and dont give source of info when they are asked to
+predicted: [0]
+labeled: [1]
+i made my son drink a bit of soap am i too easy on him
+predicted: [0]
+labeled: [1]
+why are women the weaker sex
+predicted: [1]
+labeled: [0]
+what is so special about black people makes them require black representation in europe when they are ethnic minority in these countries too
+predicted: [0]
+labeled: [1]
+will donald trump ever be impeached or this is just dems false accusations because thus far nothing concrete
+predicted: [0]
+labeled: [1]
+are women without vaginas useless
+predicted: [0]
+labeled: [1]
+but why do nigerian ladies put on chain
+predicted: [0]
+labeled: [1]
+why nazi didn ’ t feed there prisoners with human flesh
+predicted: [0]
+labeled: [1]
+shouldnt we ban transgender surgery people are starving to death but they waste money with their nonsense
+predicted: [0]
+labeled: [1]
+why dont we need borokabama
+predicted: [0]
+labeled: [1]
+is pence a right wing christian wack job
+predicted: [0]
+labeled: [1]
+why are people afraid to speak about god even when they know god is real there is a god somewhere
+predicted: [0]
+labeled: [1]
+did leia enjoy seeing the banthas out the barge window roaming freely wishing she could do the same
+predicted: [1]
+labeled: [0]
+why do indian sikhs are crying for control of gurdwara in pakistan in daily ardas are pakistani sikhs also crying for control of gurdwara in hindustan why their waheguru is not happy with their ardas
+predicted: [1]
+labeled: [0]
+why is it okay to kill unborn children but wrong to kill convicted murderers
+predicted: [0]
+labeled: [1]
+has prophet muhammad used muslims as slaves to grow his name all over the world
+predicted: [0]
+labeled: [1]
+how do i forcibly convert all hindus to sunni islam
+predicted: [0]
+labeled: [1]
+when we assess a transgender individual we can draw only of possible conclusions either they were born with the wrong brain or the wrong body why do we have to pretend like nothing went wrong in their pre natal development
+predicted: [0]
+labeled: [1]
+is there such a thing as a gay prolife progun progod propot constitutional constructionist conservative or am i the only one
+predicted: [0]
+labeled: [1]
+why cant muslims leave me alone and not harass me for being a homosexual woman should i leave islam because of this torture
+predicted: [0]
+labeled: [1]
+----Using RNN-----
+Start Training --- 922.31 seconds ---
+--- Epoch: 1 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 2 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 3 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 4 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 5 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 6 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 7 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 8 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 9 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 10 | Validation F1: 0.48403860283951294 ---
+Training Complete --- 2954.15 seconds ---
+why do bhakts spread fake news and dont give source of info when they are asked to
+predicted: [0]
+labeled: [1]
+i made my son drink a bit of soap am i too easy on him
+predicted: [0]
+labeled: [1]
+why did mi kill russian spy all facts point at mi they didnt change id of that man they placed him in salisbury thats where england develops sarin other chemicals
+predicted: [0]
+labeled: [1]
+what is so special about black people makes them require black representation in europe when they are ethnic minority in these countries too
+predicted: [0]
+labeled: [1]
+will donald trump ever be impeached or this is just dems false accusations because thus far nothing concrete
+predicted: [0]
+labeled: [1]
+are women without vaginas useless
+predicted: [0]
+labeled: [1]
+why indian people are so jealous because pakistan agency is better than their agency we should feel proud of them be respectful indians are haters be a man not women
+predicted: [0]
+labeled: [1]
+but why do nigerian ladies put on chain
+predicted: [0]
+labeled: [1]
+why nazi didn ’ t feed there prisoners with human flesh
+predicted: [0]
+labeled: [1]
+shouldnt we ban transgender surgery people are starving to death but they waste money with their nonsense
+predicted: [0]
+labeled: [1]
+why dont we need borokabama
+predicted: [0]
+labeled: [1]
+is pence a right wing christian wack job
+predicted: [0]
+labeled: [1]
+why are people afraid to speak about god even when they know god is real there is a god somewhere
+predicted: [0]
+labeled: [1]
+why is it okay to kill unborn children but wrong to kill convicted murderers
+predicted: [0]
+labeled: [1]
+has prophet muhammad used muslims as slaves to grow his name all over the world
+predicted: [0]
+labeled: [1]
+how do i forcibly convert all hindus to sunni islam
+predicted: [0]
+labeled: [1]
+why are indians too egotistical
+predicted: [0]
+labeled: [1]
+when we assess a transgender individual we can draw only of possible conclusions either they were born with the wrong brain or the wrong body why do we have to pretend like nothing went wrong in their pre natal development
+predicted: [0]
+labeled: [1]
+is there such a thing as a gay prolife progun progod propot constitutional constructionist conservative or am i the only one
+predicted: [0]
+labeled: [1]
+why cant muslims leave me alone and not harass me for being a homosexual woman should i leave islam because of this torture
+predicted: [0]
+labeled: [1]
+----Using GRU-----
+Start Training --- 3020.93 seconds ---
+--- Epoch: 1 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 2 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 3 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 4 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 5 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 6 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 7 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 8 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 9 | Validation F1: 0.48403860283951294 ---
+--- Epoch: 10 | Validation F1: 0.48403860283951294 ---
+Training Complete --- 5048.29 seconds ---
+why do bhakts spread fake news and dont give source of info when they are asked to
+predicted: [0]
+labeled: [1]
+i made my son drink a bit of soap am i too easy on him
+predicted: [0]
+labeled: [1]
+why did mi kill russian spy all facts point at mi they didnt change id of that man they placed him in salisbury thats where england develops sarin other chemicals
+predicted: [0]
+labeled: [1]
+what is so special about black people makes them require black representation in europe when they are ethnic minority in these countries too
+predicted: [0]
+labeled: [1]
+will donald trump ever be impeached or this is just dems false accusations because thus far nothing concrete
+predicted: [0]
+labeled: [1]
+are women without vaginas useless
+predicted: [0]
+labeled: [1]
+why indian people are so jealous because pakistan agency is better than their agency we should feel proud of them be respectful indians are haters be a man not women
+predicted: [0]
+labeled: [1]
+but why do nigerian ladies put on chain
+predicted: [0]
+labeled: [1]
+why nazi didn ’ t feed there prisoners with human flesh
+predicted: [0]
+labeled: [1]
+shouldnt we ban transgender surgery people are starving to death but they waste money with their nonsense
+predicted: [0]
+labeled: [1]
+why dont we need borokabama
+predicted: [0]
+labeled: [1]
+is pence a right wing christian wack job
+predicted: [0]
+labeled: [1]
+why are people afraid to speak about god even when they know god is real there is a god somewhere
+predicted: [0]
+labeled: [1]
+why is it okay to kill unborn children but wrong to kill convicted murderers
+predicted: [0]
+labeled: [1]
+has prophet muhammad used muslims as slaves to grow his name all over the world
+predicted: [0]
+labeled: [1]
+how do i forcibly convert all hindus to sunni islam
+predicted: [0]
+labeled: [1]
+why are indians too egotistical
+predicted: [0]
+labeled: [1]
+when we assess a transgender individual we can draw only of possible conclusions either they were born with the wrong brain or the wrong body why do we have to pretend like nothing went wrong in their pre natal development
+predicted: [0]
+labeled: [1]
+is there such a thing as a gay prolife progun progod propot constitutional constructionist conservative or am i the only one
+predicted: [0]
+labeled: [1]
+why cant muslims leave me alone and not harass me for being a homosexual woman should i leave islam because of this torture
+predicted: [0]
+labeled: [1]
+----Using LSTM-----
+Start Training --- 5117.09 seconds ---
+--- Epoch: 1 | Validation F1: 0.5582232988123015 ---
+--- Epoch: 2 | Validation F1: 0.6287647531353113 ---
+--- Epoch: 3 | Validation F1: 0.6853785104195129 ---
+--- Epoch: 4 | Validation F1: 0.7077288026006545 ---
+--- Epoch: 5 | Validation F1: 0.7188328414138383 ---
+--- Epoch: 6 | Validation F1: 0.7257723759801524 ---
+--- Epoch: 7 | Validation F1: 0.7313969190575995 ---
+--- Epoch: 8 | Validation F1: 0.7348811129808248 ---
+--- Epoch: 9 | Validation F1: 0.7384898340387944 ---
+--- Epoch: 10 | Validation F1: 0.7419780457587929 ---
+Training Complete --- 7084.44 seconds ---
+i made my son drink a bit of soap am i too easy on him
+predicted: [0]
+labeled: [1]
+why are women the weaker sex
+predicted: [1]
+labeled: [0]
+but why do nigerian ladies put on chain
+predicted: [0]
+labeled: [1]
+why nazi didn ’ t feed there prisoners with human flesh
+predicted: [0]
+labeled: [1]
+why dont we need borokabama
+predicted: [0]
+labeled: [1]
+is president trump trying to suspend our belief in the media by lying to american citizens
+predicted: [1]
+labeled: [0]
+is pence a right wing christian wack job
+predicted: [0]
+labeled: [1]
+why do indian sikhs are crying for control of gurdwara in pakistan in daily ardas are pakistani sikhs also crying for control of gurdwara in hindustan why their waheguru is not happy with their ardas
+predicted: [1]
+labeled: [0]
+why are liberals so obsessed with diversity
+predicted: [1]
+labeled: [0]
+has prophet muhammad used muslims as slaves to grow his name all over the world
+predicted: [0]
+labeled: [1]
+can a white dad and black mom have darker baby
+predicted: [1]
+labeled: [0]
+how do i forcibly convert all hindus to sunni islam
+predicted: [0]
+labeled: [1]
+when we assess a transgender individual we can draw only of possible conclusions either they were born with the wrong brain or the wrong body why do we have to pretend like nothing went wrong in their pre natal development
+predicted: [0]
+labeled: [1]
+is there such a thing as a gay prolife progun progod propot constitutional constructionist conservative or am i the only one
+predicted: [0]
+labeled: [1]
+will trump be able to collect concrete blocks from the buildings destroyed in the recent mexico earthquakes and repurpose them as part of the great wall to save some costs
+predicted: [0]
+labeled: [1]
+if justin trudeau gets elected again how do i move to another country as far away from that insane terrorist loving parasite
+predicted: [0]
+labeled: [1]
+are crimean tatars a dangerous group enough of a danger for russian police to search homes and arrest random people
+predicted: [0]
+labeled: [1]
+can a husband bring a stay order on sale of his wife as property
+predicted: [0]
+labeled: [1]
+how do i block south indian people from my quora feed
+predicted: [0]
+labeled: [1]
+why is google saying that narendra modi is the no criminal
+predicted: [0]
+labeled: [1]

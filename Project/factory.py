@@ -45,15 +45,19 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 500 #1306112 is full dataset
+    train_size = 1306112 #1306112 is full dataset
     erroranalysis = True
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
     train_context_array, train_context_label_array, test_context_array, totalpadlength, wordindex, vocab = get_context_vector(vocab, train_questions, train_labels, test_questions)
     unique, cnts = np.unique(train_context_label_array, return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
-    # run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit, erroranalysis, wordindex)
-    # pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit,erroranalysis, wordindex)
+    run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit, erroranalysis, wordindex)
+    pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit,erroranalysis, wordindex)
+    RNNTYPE = "RNN"
+    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
+    RNNTYPE = "GRU"
+    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
     RNNTYPE = "LSTM"
     run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
     return
@@ -173,7 +177,7 @@ vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex)
     regular FeedForward without pretrained embeddings
     '''
     
-    BATCH_SIZE = 50 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU -- keep set to 1 to predict all test cases in current implementation
 
     #randomly split into test and validation sets
     X_train, y_train = context_array, context_label_array
@@ -210,9 +214,9 @@ vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex)
     
     
     #edit as deisred
-    EMBEDDING_DIM = 25 # embeddings dimensions
+    EMBEDDING_DIM = 100 # embeddings dimensions
     CONTEXT_SIZE = totalpadlength # total length of padded questions size
-    HIDDEN_SIZE = 20 # nodes in hidden layer
+    HIDDEN_SIZE = 70 # nodes in hidden layer
 
     class FeedForward(nn.Module):
         '''
@@ -255,7 +259,7 @@ vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex)
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(50): 
+    for epoch in range(10): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -476,7 +480,7 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
     f1_list = []
     best_f1 = 0 
     print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(50): 
+    for epoch in range(10): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -627,7 +631,7 @@ train_size, totalpadlength, readytosubmit, RNNTYPE,erroranalysis, wordindex):
     testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
 
     #edit as deisred
-    EMBEDDING_DIM = 300 # embeddings dimensions
+    EMBEDDING_DIM = 100 # embeddings dimensions
     CONTEXT_SIZE = totalpadlength # total length of padded questions size
     HIDDEN_SIZE = 70 # nodes in hidden layer
 
@@ -707,7 +711,7 @@ train_size, totalpadlength, readytosubmit, RNNTYPE,erroranalysis, wordindex):
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(50): 
+    for epoch in range(10): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
