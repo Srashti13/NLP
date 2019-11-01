@@ -240,7 +240,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
         # reshape labels to give a flat vector of length batch_size*seq_len
         
         # mask out 'PAD' tokens
-        mask = (labels >= 0).float()
+        mask = (labels > 0).float()
         # the number of tokens is the sum of elements in mask
         num_tokens = int(torch.sum(mask).item())
         
@@ -261,7 +261,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
     metric_list = []
     best_metric = 0 
     print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(100): 
+    for epoch in range(10): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -311,8 +311,12 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
             torch.cuda.empty_cache()#memory
             # print('\n')
             # gpu_usage()
-            # print(labelsfull)
-            # print(predictionsfull)
+
+            #remove pads and do acc calculation:
+            padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+            for index in sorted(padindicies, reverse=True):
+                del labelsfull[index]
+                del predictionsfull[index]
             metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
             metric_list.append(metricscore)
         print('--- Epoch: {} | Validation Accuracy: {} ---'.format(epoch+1, metric_list[-1])) 
@@ -327,6 +331,40 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
                 break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
+        # Get the accuracy on the validation set for each epoch
+    model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+    with torch.no_grad():
+        predictionsfull = []
+        labelsfull = []
+        for a, (context, label) in enumerate(testloader):
+            label = label.contiguous().view(-1) # convert to length batch_size*seq_len
+            context = context.to(device)
+            label = label.to(device)
+            yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+            # print(yhats.shape)
+            # print(yhats[1])
+            index = yhats.max(1)[1] #index position of max value
+            prediction = index.int().tolist()
+            # print([prediction])
+            # print('---')
+            # print([label.int().tolist()])
+            predictionsfull.extend(prediction)
+            labelsfull.extend(label.int().tolist())
+            del context, label, prediction #memory
+        gc.collect()#memory
+        torch.cuda.empty_cache()#memory
+        # print('\n')
+        # gpu_usage()
+
+        #remove pads and do acc calculation:
+        padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+        for index in sorted(padindicies, reverse=True):
+            del labelsfull[index]
+            del predictionsfull[index]
+        metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
+        metric_list.append(metricscore)
+    print('--- Epoch: {} | Test Accuracy: {} ---'.format(epoch+1, metric_list[-1]))
+
 
 if __name__ == "__main__":
     main()
