@@ -221,7 +221,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
             self.act = nn.Softmax(dim=1) #CrossEntropyLoss takes care of this
             
         def forward(self, inputs, context_size, embedding_dim):
-            # print(inputs.shape)
+            # print(inputs.shape) # dim: batch_size x batch_max_len
             embeds = self.embedding(inputs) # dim: batch_size x batch_max_len x embedding_dim
             # print(embeds.shape)
             out, _ = self.rnn(embeds) # dim: batch_size x batch_max_len x lstm_hidden_dim 
