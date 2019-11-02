@@ -12,7 +12,6 @@ import numpy as np
 import time
 import torch.utils.data as data_utils
 import torch
-import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn 
 import gc
@@ -24,26 +23,29 @@ start_time = time.time()
 
 def main():
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
-    train_vocab, train_sentences, totalpadlength = get_sentences(r"conll2003\train.txt")
-    valid_vocab, valid_sentences, _ = get_sentences(r"conll2003\valid.txt")
-    test_vocab, test_sentences, _ = get_sentences(r"conll2003\test.txt")
-    vocab = dict_combination(train_vocab, valid_vocab, test_vocab)
-    vectorized_data = get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
-    run_RNN(vectorized_data, vocab, totalpadlength)
+    train_vocab, train_sentences, totalpadlength, train_sentence_lengths = get_sentences(r"conll2003\train.txt")
+    valid_vocab, valid_sentences, _, valid_sentence_lengths = get_sentences(r"conll2003\valid.txt")
+    test_vocab, test_sentences, _, test_sentence_lengths = get_sentences(r"conll2003\test.txt")
+    word_to_ix = dict_combination(train_vocab, valid_vocab, test_vocab)
+    vectorized_data = get_context_vectors(word_to_ix, train_sentences, valid_sentences, test_sentences)
+    weights_matrix = build_weights_matrix(word_to_ix, "GoogleNews-vectors-negative300.txt",
+                                      300)
+    run_RNN(vectorized_data, word_to_ix, totalpadlength, train_sentence_lengths,
+            valid_sentence_lengths,test_sentence_lengths, weights_matrix)
     return
 
 def dict_combination(dictone,dicttwo,dictthree):
     '''
     Helper function to combine three dictionaries into one and keep the unique set of values for all keys
     '''
-    combined = defaultdict()
     ds = [dictone, dicttwo,dictthree]
+    total_vocab = []
     for k in list(set(list(ds[0].keys()) + list(ds[1].keys())+list(ds[2].keys()))):
-        value = list(d[k] for d in ds)
-        combined[k] = list(set([item for sublist in value for item in sublist]))
-    return combined
+        total_vocab.append(k)
+    vocab_index = {v:i+1 for i,v in enumerate(total_vocab)}
+    vocab_index['<pad>'] = 0
+    return vocab_index
 
-#%%
 def get_sentences(docs):
 
     # tokenizing: lowercasing all words that have some, but not all, uppercase
@@ -76,30 +78,34 @@ def get_sentences(docs):
         if not word:
             sentence_ends.append(i)
     sentence_ends.append(len(doc)-1)
-    #%% creating a list of all the sentences 
+    # creating a list of all the sentences 
     sentences = []
     for i in range(len(sentence_ends)-1):
         sentences.append(doc[sentence_ends[i]+1:sentence_ends[i+1]])
         
+    # there's an extra line on the end that needs to be removed
+    sentences = sentences[:-1]  
     # getting the longest sentence
     max(sentences, key=len)
     # getting the length of the longest sentence
     max_sent_len = len(max(sentences, key=len))
 
     ## padding all of the sentences to make them length 113
+    sentence_lengths = []
     for sentence in sentences:
-        sentence.extend(['0','<pad>'] for i in range(max_sent_len-len(sentence)))
-    # This is the code to read the embeddings
-    vocab['0'] = '<pad>'
+        sentence_lengths.append(len(sentence))
+        sentence.extend(['<pad>','<pad>'] for i in range(max_sent_len-len(sentence)))
+        
+    sentence_lengths = torch.LongTensor(sentence_lengths)
+    # This is the code to read the embeddings    
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return vocab, sentences, max_sent_len
+    return vocab, sentences, max_sent_len, sentence_lengths
 
-
-def get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences):
+def get_context_vectors(word_to_ix, train_sentences, valid_sentences, test_sentences):
     '''
     convert to numpy vectors 
     '''
-    word_to_ix = {word: i for i, word in enumerate(vocab)} #index vocabulary
+
     labels_to_ix = {"<pad>":0, "O":1, "B-ORG":2, "B-PER":3, "B-LOC":4, "B-MISC":5, "I-ORG":6, "I-PER":7, "I-LOC":8, "I-MISC":9}
 
     train_context_values = [] #array of word index for context
@@ -137,95 +143,92 @@ def get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
     print("--- Arrays Created --- %s seconds ---" % (round((time.time() - start_time),2)))
     return arrays_and_labels
 
-def run_RNN(vectorized_data, vocab, totalpadlength):
-    '''
-    This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
-    '''
-    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
+def format_tensors(vectorized_data, dataset_type,seq_lens, batch_size):
+    # set datatypes
+    X = torch.from_numpy(vectorized_data[dataset_type+'_context_array'])
+    X = X.long()
+    y = torch.from_numpy(vectorized_data[dataset_type+'_context_label_array'])
+    y = y.long()
+    # create datasets for loading into models
+    tensordata = data_utils.TensorDataset(X,y,seq_lens)
+    loader = data_utils.DataLoader(tensordata, batch_size=batch_size,shuffle=True)
+    return loader
 
-    #set datatypes 
-    X_train = torch.from_numpy(vectorized_data['train_context_array'])
-    X_train = X_train.long()
-    y_train = torch.from_numpy(vectorized_data['train_context_label_array'])
-    y_train = y_train.long()
-    X_valid = torch.from_numpy(vectorized_data['valid_context_array'])
-    X_valid = X_valid.long()
-    y_valid = torch.from_numpy(vectorized_data['valid_context_label_array'])
-    y_valid = y_valid.long()
-    X_test = torch.from_numpy(vectorized_data['test_context_array'])
-    X_test = X_test.long()
-    y_test = torch.from_numpy(vectorized_data['test_context_label_array'])
-    y_test = y_test.long()
-    
-    #create datsets for loading into models
-    train = data_utils.TensorDataset(X_train, y_train)
-    valid = data_utils.TensorDataset(X_valid, y_valid)
-    test = data_utils.TensorDataset(X_test, y_test)
-    trainloader = data_utils.DataLoader(train, batch_size=BATCH_SIZE, shuffle=False)
-    validloader = data_utils.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False)
-    testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
-    
-    print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
-    EMBEDDING_DIM = 300 # embeddings dimensions
-    CONTEXT_SIZE = totalpadlength #sentence size
-    
-    # getting embeddings from the file
-    # from gensim.models.keyedvectors import KeyedVectors
-    # model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
-    # model.save_word2vec_format('GoogleNews-vectors-negative300.txt', binary=False)
-    # model = KeyedVectors.load_word2vec_format('D:\GoogleNews-vectors-negative300.bin', binary=True, limit=2000)
-    EMBEDDING_FILE = "GoogleNews-vectors-negative300.txt"
-    embeddings_index = {}
+def build_weights_matrix(vocab, embedding_file,embedding_dim):
     words = []
-    with open (EMBEDDING_FILE, encoding="utf8") as f:
+    embeddings_index = {}
+    with open (embedding_file, encoding="utf8") as f:
         for line in f:
             values = line.split()
             word = values[0]
             words.append(word)
             embedding = np.asarray(values[1:], dtype='float32')
             embeddings_index[word] = embedding
-
     matrix_len = len(vocab)
-    weights_matrix = np.zeros((matrix_len, EMBEDDING_DIM)) # 200 is depth of embedding matrix
+    weights_matrix = np.zeros((matrix_len, embedding_dim)) # 200 is depth of embedding matrix
     words_found = 0
     words_not_found = 0
-    for i, word in enumerate(vocab):
+    for word in vocab:
         try:
-            weights_matrix[i] = embeddings_index[word]
+            weights_matrix[vocab[word]] = embeddings_index[word]
             words_found += 1
         
         except KeyError:
-            weights_matrix[i] = np.random.normal(scale=0.6, size=(EMBEDDING_DIM,)) #randomize out of vocabulary words
+            weights_matrix[vocab[word]] = np.random.normal(scale=0.6, size=(embedding_dim,)) #randomize out of vocabulary words
             words_not_found += 1
-    
+            
     print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
-    
     weights_matrix_torch = torch.from_numpy(weights_matrix)
+    return weights_matrix_torch
+
+def run_RNN(vectorized_data, vocab, totalpadlength, train_sentence_lengths,
+            valid_sentence_lengths, test_sentence_lengths, weights_matrix):
+    '''
+    This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
+    '''
+    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
+
+
+    trainloader = format_tensors(vectorized_data, 'train',
+                                 train_sentence_lengths, BATCH_SIZE)
+    validloader = format_tensors(vectorized_data, 'valid',
+                                 valid_sentence_lengths, BATCH_SIZE)
+    testloader = format_tensors(vectorized_data, 'test',
+                                 test_sentence_lengths, BATCH_SIZE)
+    
+    print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
+    EMBEDDING_DIM = 300 # embeddings dimensions
+    HIDDEN_SIZE = 120
+    CONTEXT_SIZE = totalpadlength #sentence size
+    
     
     def create_emb_layer(weights_matrix, non_trainable=False):
         num_embeddings, embedding_dim = weights_matrix.size()
-        emb_layer = nn.Embedding(num_embeddings, embedding_dim)
+        emb_layer = nn.Embedding(num_embeddings, embedding_dim, padding_idx=vocab['<pad>'])
         emb_layer.load_state_dict({'weight':weights_matrix})
         if non_trainable:
             emb_layer.weight.requires_grad = False
         return emb_layer, num_embeddings, embedding_dim
     
-    ## EDIT BELOW!-------------------------------------------------------------------------
     class RNNmodel(nn.Module):
-        def __init__(self, weights_matrix, context_size):
+        def __init__(self, weights_matrix, context_size, hidden_size):
             super(RNNmodel, self).__init__()
             print('----Using LSTM (Pre-trained Embeddings)----')
             self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
-            self.rnn = nn.LSTM(embedding_dim,120, batch_first=True)
-            self.fc = nn.Linear(120,10)
+            self.rnn = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
+            self.fc = nn.Linear(hidden_size,10)
             self.act = nn.Softmax(dim=1) #CrossEntropyLoss takes care of this
             
-        def forward(self, inputs, context_size, embedding_dim):
+        def forward(self, inputs, context_size, embedding_dim, seq_lens):
             # print(inputs.shape) # dim: batch_size x batch_max_len
             embeds = self.embedding(inputs) # dim: batch_size x batch_max_len x embedding_dim
             # print(embeds.shape)
-            out, _ = self.rnn(embeds) # dim: batch_size x batch_max_len x lstm_hidden_dim 
-            # print(out.shape)
+            packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, seq_lens,batch_first=True)
+            out, _ = self.rnn(packed) # dim: batch_size x batch_max_len x lstm_hidden_dim 
+
+            # dim: [batch_size x batch_max_len x lstm_hidden_dim]
+            out, _ = torch.nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
+            
             out = out.contiguous().view(-1, out.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
             # print(out.shape)
             out = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
@@ -233,7 +236,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
             # print(yhats.shape)
             # print(yhats[2])
             return yhats 
-
+    
     #initalize model parameters and variables
     losses = []
     def loss_fn(outputs, labels):  #custom loss function needed b/c don't want to test on pads # https://cs230-stanford.github.io/pytorch-nlp.html
@@ -250,11 +253,11 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
         # cross entropy loss for all non 'PAD' tokens
         return -torch.sum(outputs)/num_tokens
 
-    model = RNNmodel(weights_matrix_torch, CONTEXT_SIZE)
+    model = RNNmodel(weights_matrix, CONTEXT_SIZE, HIDDEN_SIZE)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
 
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.Adam(model.parameters(), lr=0.0001) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
@@ -264,14 +267,18 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
     for epoch in range(10): 
         iteration = 0
         running_loss = 0.0 
-        for i, (context, label) in enumerate(trainloader):
+        for i, (context, label, sentence_lengths) in enumerate(trainloader):
+            sentence_lengths, desc_idx = sentence_lengths.sort(0,descending=True)
+            context = context[desc_idx]
+            label = label.view(-1,113)
+            label = label[desc_idx,:max(sentence_lengths).item()]
             # zero out the gradients from the old instance
             optimizer.zero_grad()
             # Run the forward pass and get predicted output
             label = label.contiguous().view(-1) # convert to length batch_size*seq_len
             context = context.to(device)
             label = label.to(device)
-            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM) #required dimensions for batching
+            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM, sentence_lengths) #required dimensions for batching
             # Compute Binary Cross-Entropy
             loss = loss_fn(yhat, label)
             #clear memory 
@@ -292,11 +299,15 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
         with torch.no_grad():
             predictionsfull = []
             labelsfull = []
-            for a, (context, label) in enumerate(validloader):
+            for a, (context, label, sentence_lengths) in enumerate(validloader):
+                sentence_lengths, desc_idx = sentence_lengths.sort(0,descending=True)
+                context = context[desc_idx]
+                label = label.view(-1,109)
+                label = label[desc_idx,:max(sentence_lengths).item()]
                 label = label.contiguous().view(-1) # convert to length batch_size*seq_len
                 context = context.to(device)
                 label = label.to(device)
-                yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM, sentence_lengths)
                 # print(yhats.shape)
                 # print(yhats[1])
                 index = yhats.max(1)[1] #index position of max value
@@ -336,11 +347,15 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
     with torch.no_grad():
         predictionsfull = []
         labelsfull = []
-        for a, (context, label) in enumerate(testloader):
+        for a, (context, label, sentence_lengths) in enumerate(testloader):
+            sentence_lengths, desc_idx = sentence_lengths.sort(0,descending=True)
+            context = context[desc_idx]
+            label = label.view(-1,124)
+            label = label[desc_idx,:max(sentence_lengths).item()]
             label = label.contiguous().view(-1) # convert to length batch_size*seq_len
             context = context.to(device)
             label = label.to(device)
-            yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+            yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM, sentence_lengths)
             # print(yhats.shape)
             # print(yhats[1])
             index = yhats.max(1)[1] #index position of max value
