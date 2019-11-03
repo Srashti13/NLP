@@ -286,7 +286,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
     metric_list = []
     best_metric = 0 
     print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(1): 
+    for epoch in range(100): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -391,6 +391,8 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
     for element in labelsfull: #convert to real words and labels
         formattedlabels.extend(labelindex[element])
     for element in predictionsfull:
+        if element == 0:
+            element = 1 #remove stray <pad> predictions
         formattedpredictions.extend(labelindex[element])
     for element in contextfull:
         formattedcontexts.extend(wordindex[element])
@@ -403,6 +405,6 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
         f.write(formattedcontexts[i] + ' ' + formattedlabels[i] + ' ' + formattedpredictions[i] + '\n')
     f.close()
     evaluate_conll_file(open(fname,'r'))
-    
+
 if __name__ == "__main__":
     main()
