@@ -166,7 +166,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
     '''
     This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
     '''
-    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
+    BATCH_SIZE = 2000 # 1000 maxes memory for 8GB GPU
 
     #set datatypes 
     X_train = torch.from_numpy(vectorized_data['train_context_array'])
@@ -243,7 +243,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
             self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
             self.rnn = nn.LSTM(embedding_dim,256, batch_first=True)
             self.fc = nn.Linear(256,10)
-            self.act = nn.Softmax(dim=1) #CrossEntropyLoss takes care of this
+            # self.act = nn.Softmax(dim=1) #CrossEntropyLoss takes care of this
             
         def forward(self, inputs, context_size, embedding_dim):
             # print(inputs.shape) # dim: batch_size x batch_max_len
@@ -253,8 +253,8 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
             # print(out.shape)
             out = out.contiguous().view(-1, out.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
             # print(out.shape)
-            out = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
-            yhats = self.act(out)
+            yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
+            # yhats = self.act(out) #don't need bc/ cross entropy
             # print(yhats.shape)
             # print(yhats[2])
             return yhats 
@@ -264,22 +264,33 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
     def loss_fn(outputs, labels):  #custom loss function needed b/c don't want to test on pads # https://cs230-stanford.github.io/pytorch-nlp.html
         # reshape labels to give a flat vector of length batch_size*seq_len
         
-        # mask out 'PAD' tokens
+        # mask out 'PAD' tokens so we don't train those
         mask = (labels > 0).float()
+
+        #weights for loss function imbalance
+        weights = (labels > 1).float() *100
+
         # the number of tokens is the sum of elements in mask
         num_tokens = int(torch.sum(mask).item())
         
         # pick the values corresponding to labels and multiply by mask
         outputs = outputs[range(outputs.shape[0]), labels]*mask
+
+        #add class weights
+        outputs = outputs[range(outputs.shape[0]), labels]*weights
         
         # cross entropy loss for all non 'PAD' tokens
         return -torch.sum(outputs)/num_tokens
+
+    weights = [0.00001, .05,1,1,1,1,1,1,1,1] #zero out pads and reduce weights given to "O" objects in loss function
+    class_weights = torch.FloatTensor(weights).cuda()
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     model = RNNmodel(weights_matrix_torch, CONTEXT_SIZE)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
 
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.1) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.Adam(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
@@ -298,7 +309,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
             label = label.to(device)
             yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM) #required dimensions for batching
             # Compute Binary Cross-Entropy
-            loss = loss_fn(yhat, label)
+            loss = criterion(yhat, label)
             #clear memory 
             del context, label #memory 
             # Do the backward pass and update the gradient
@@ -332,14 +343,14 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
             # print('\n')
             # gpu_usage()
 
-            # remove pads and do acc calculation:
-            padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+            # remove pads and "O" and do acc calculation:
+            padindicies = [i for i, x in enumerate(labelsfull) if x == 0 or x==1] 
             for index in sorted(padindicies, reverse=True):
                 del labelsfull[index]
                 del predictionsfull[index]
             metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
             metric_list.append(metricscore)
-        print('--- Epoch: {} | Validation Accuracy: {} ---'.format(epoch+1, metric_list[-1])) 
+        print('--- Epoch: {} | Validation Accuracy (non-O): {} ---'.format(epoch+1, metric_list[-1])) 
 
         if metric_list[-1] > best_metric: #save if it improves validation accuracy 
             best_metric = metric_list[-1]
