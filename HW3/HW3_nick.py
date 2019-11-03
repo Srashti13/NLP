@@ -32,8 +32,10 @@ def main():
     vocab = dict_combination(train_vocab, valid_vocab, test_vocab)
     vectorized_data, wordindex, labelindex = get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
     EMBEDDING_DIM=300
-    weights_matrix_torch = build_weights_matrix(vocab, "D:GoogleNews-vectors-negative300.txt", EMBEDDING_DIM)
-    run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex, weights_matrix_torch)
+    HIDDEN_SIZE=256
+    weights_matrix_torch = build_weights_matrix(vocab, "GoogleNews-vectors-negative300.txt", EMBEDDING_DIM)
+    run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex, 
+            weights_matrix_torch, HIDDEN_SIZE, bidirectional=False, RNNTYPE="RNN")
     return
 
 def dict_combination(dictone,dicttwo,dictthree):
@@ -202,7 +204,8 @@ def build_weights_matrix(vocab, embedding_file, embedding_dim):
     print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
     return torch.from_numpy(weights_matrix)
 
-def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex, weights_matrix_torch):
+def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex, 
+            weights_matrix_torch,hidden_size,bidirectional=False,RNNTYPE="RNN"):
     '''
     This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
     '''
@@ -224,53 +227,80 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex, weigh
         return emb_layer, num_embeddings, embedding_dim
     
     ## EDIT BELOW!-------------------------------------------------------------------------
-    class RNNmodel(nn.Module):
-        def __init__(self, weights_matrix, context_size):
-            super(RNNmodel, self).__init__()
-            print('----Using LSTM (Pre-trained Embeddings)----')
-            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
-            self.rnn = nn.LSTM(embedding_dim,256, batch_first=True)
-            self.fc = nn.Linear(256,10)
-            # self.act = nn.Softmax(dim=1) #CrossEntropyLoss takes care of this
-            
-        def forward(self, inputs, context_size, embedding_dim):
-            # print(inputs.shape) # dim: batch_size x batch_max_len
-            embeds = self.embedding(inputs) # dim: batch_size x batch_max_len x embedding_dim
-            # print(embeds.shape)
-            out, _ = self.rnn(embeds) # dim: batch_size x batch_max_len x lstm_hidden_dim 
-            # print(out.shape)
-            out = out.contiguous().view(-1, out.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
-            # print(out.shape)
-            yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
-            # yhats = self.act(out) #don't need bc/ cross entropy
-            # print(yhats.shape)
-            # print(yhats[2])
-            return yhats 
+    if not bidirectional:
+        class RNNmodel(nn.Module):
+            def __init__(self, weights_matrix, context_size):
+                super(RNNmodel, self).__init__()
+                self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
+                if RNNTYPE=="LSTM":
+                    print("----Using LSTM-----")
+                    self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True)
+                elif RNNTYPE=="GRU":
+                    print("----Using GRU-----")
+                    self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True)
+                else:
+                    print("----Using RNN-----")
+                    self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True)
+                self.fc = nn.Linear(hidden_size,10)
+                
+            def forward(self, inputs, context_size, embedding_dim):
+                # print(inputs.shape) # dim: batch_size x batch_max_len
+                embeds = self.embedding(inputs) # dim: batch_size x batch_max_len x embedding_dim
+                # print(embeds.shape)
+                out, _ = self.rnn(embeds) # dim: batch_size x batch_max_len x lstm_hidden_dim 
+                # print(out.shape)
+                out = out.contiguous().view(-1, out.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
+                # print(out.shape)
+                yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
+                return yhats 
+    else:
+        class RNNmodel(nn.Module):
+            def __init__(self, weights_matrix, context_size):
+                # bidirectional LSTM
+                super(RNNmodel, self).__init__()
+                print('----Using LSTM (Pre-trained Embeddings)----')
+                self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
+                if RNNTYPE=="LSTM":
+                    print("----Using LSTM-----")
+                    self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, 
+                                       batch_first=True,bidirectional=True)
+                elif RNNTYPE=="GRU":
+                    print("----Using GRU-----")
+                    self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, 
+                                      batch_first=True,bidirectional=True)
+                else:
+                    print("----Using RNN-----")
+                    self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, 
+                                      batch_first=True,bidirectional=True)
+                
+                self.fc = nn.Linear(hidden_size*2,10)
+                
+            def forward(self, inputs, context_size, embedding_dim):
+                # print(inputs.shape) # dim: batch_size x batch_max_len
+                embeds = self.embedding(inputs) # dim: batch_size x batch_max_len x embedding_dim
+                # print(embeds.shape)
+                out, _ = self.rnn(embeds) # dim: batch_size x batch_max_len x lstm_hidden_dim 
+                combined_bi = torch.cat((out[:,:,:hidden_size],out[:,:,hidden_size:]),dim=-1)
+                # print(out.shape)
+                out = combined_bi.contiguous().view(-1, combined_bi.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
+                # print(out.shape)
+                yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
+                return yhats 
+    
 
     #initalize model parameters and variables
     losses = []
-    def loss_fn(outputs, labels):  #custom loss function needed b/c don't want to test on pads # https://cs230-stanford.github.io/pytorch-nlp.html
-        # reshape labels to give a flat vector of length batch_size*seq_len
-        
-        # mask out 'PAD' tokens so we don't train those
-        mask = (labels > 0).float()
-
-        #weights for loss function imbalance
-        weights = (labels > 1).float() *100
-
-        # the number of tokens is the sum of elements in mask
-        num_tokens = int(torch.sum(mask).item())
-        
-        # pick the values corresponding to labels and multiply by mask
-        outputs = outputs[range(outputs.shape[0]), labels]*mask
-
-        #add class weights
-        outputs = outputs[range(outputs.shape[0]), labels]*weights
-        
-        # cross entropy loss for all non 'PAD' tokens
-        return -torch.sum(outputs)/num_tokens
-
-    weights = [0.00001, .05,1,1,1,1,1,1,1,1] #zero out pads and reduce weights given to "O" objects in loss function
+    def class_proportional_weights(train_labels):
+        '''
+        helper function to scale weights of classes in loss function based on their sampled proportions
+        '''
+        weights = []
+        flat_train_labels = [item for sublist in train_labels for item in sublist]
+        for lab in range(1,10):
+            weights.append(1-(flat_train_labels.count(lab)/(len(flat_train_labels)-flat_train_labels.count(0)))) #proportional to number without tags
+        weights.insert(0,0) #zero padding values weight
+        return weights
+    weights = class_proportional_weights(vectorized_data['train_context_label_array'].tolist()) #zero out pads and reduce weights given to "O" objects in loss function
     class_weights = torch.FloatTensor(weights).cuda()
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
