@@ -7,7 +7,9 @@ Command to run the file: python HW3.py
 #%%
 
 import re
+import os
 from collections import defaultdict
+import itertools
 import numpy as np
 import time
 import torch.utils.data as data_utils
@@ -17,7 +19,7 @@ import torch.optim as optim
 import torch.nn as nn 
 import gc
 from sklearn.metrics import accuracy_score
-
+from conlleval import evaluate_conll_file
 
 
 start_time = time.time()
@@ -28,8 +30,8 @@ def main():
     valid_vocab, valid_sentences, _ = get_sentences(r"conll2003\valid.txt")
     test_vocab, test_sentences, _ = get_sentences(r"conll2003\test.txt")
     vocab = dict_combination(train_vocab, valid_vocab, test_vocab)
-    vectorized_data = get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
-    run_RNN(vectorized_data, vocab, totalpadlength)
+    vectorized_data, wordindex, labelindex = get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
+    run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex)
     return
 
 def dict_combination(dictone,dicttwo,dictthree):
@@ -134,10 +136,33 @@ def get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
                         "test_context_array":test_context_array,
                         "test_context_label_array":test_context_label_array}
 
-    print("--- Arrays Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return arrays_and_labels
 
-def run_RNN(vectorized_data, vocab, totalpadlength):
+    #used to back convert to words from index
+    ix_to_word = {} 
+    for key, value in word_to_ix.items(): 
+        if value in ix_to_word: 
+            ix_to_word[value].append(key) 
+            print(value)
+            print(key)
+            print(ix_to_word[value])
+        else: 
+            ix_to_word[value]=[key] 
+
+    #used to back convert to words from index
+    ix_to_label = {} 
+    for key, value in labels_to_ix.items(): 
+        if value in ix_to_label: 
+            ix_to_label[value].append(key) 
+            print(value)
+            print(key)
+            print(ix_to_label[value])
+        else: 
+            ix_to_label[value]=[key] 
+
+    print("--- Arrays Created --- %s seconds ---" % (round((time.time() - start_time),2)))
+    return arrays_and_labels, ix_to_word, ix_to_label
+
+def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
     '''
     This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
     '''
@@ -216,8 +241,8 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
             super(RNNmodel, self).__init__()
             print('----Using LSTM (Pre-trained Embeddings)----')
             self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
-            self.rnn = nn.LSTM(embedding_dim,120, batch_first=True)
-            self.fc = nn.Linear(120,10)
+            self.rnn = nn.LSTM(embedding_dim,256, batch_first=True)
+            self.fc = nn.Linear(256,10)
             self.act = nn.Softmax(dim=1) #CrossEntropyLoss takes care of this
             
         def forward(self, inputs, context_size, embedding_dim):
@@ -240,7 +265,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
         # reshape labels to give a flat vector of length batch_size*seq_len
         
         # mask out 'PAD' tokens
-        mask = (labels > 0).float()
+        mask = (labels > -1).float()
         # the number of tokens is the sum of elements in mask
         num_tokens = int(torch.sum(mask).item())
         
@@ -254,14 +279,14 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
 
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.Adam(model.parameters(), lr=0.1) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     metric_list = []
     best_metric = 0 
     print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(10): 
+    for epoch in range(1): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -297,13 +322,8 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
                 context = context.to(device)
                 label = label.to(device)
                 yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
-                # print(yhats.shape)
-                # print(yhats[1])
                 index = yhats.max(1)[1] #index position of max value
                 prediction = index.int().tolist()
-                # print([prediction])
-                # print('---')
-                # print([label.int().tolist()])
                 predictionsfull.extend(prediction)
                 labelsfull.extend(label.int().tolist())
                 del context, label, prediction #memory
@@ -313,10 +333,10 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
             # gpu_usage()
 
             #remove pads and do acc calculation:
-            padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
-            for index in sorted(padindicies, reverse=True):
-                del labelsfull[index]
-                del predictionsfull[index]
+            # padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+            # for index in sorted(padindicies, reverse=True):
+            #     del labelsfull[index]
+            #     del predictionsfull[index]
             metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
             metric_list.append(metricscore)
         print('--- Epoch: {} | Validation Accuracy: {} ---'.format(epoch+1, metric_list[-1])) 
@@ -336,35 +356,58 @@ def run_RNN(vectorized_data, vocab, totalpadlength):
     with torch.no_grad():
         predictionsfull = []
         labelsfull = []
+        contextfull = []
         for a, (context, label) in enumerate(testloader):
             label = label.contiguous().view(-1) # convert to length batch_size*seq_len
+            labelsfull.extend(label.int().tolist()) #saving for pad removal and pack conversion
+            contextfull.extend(context.int().tolist())
             context = context.to(device)
             label = label.to(device)
             yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
-            # print(yhats.shape)
-            # print(yhats[1])
             index = yhats.max(1)[1] #index position of max value
             prediction = index.int().tolist()
-            # print([prediction])
-            # print('---')
-            # print([label.int().tolist()])
-            predictionsfull.extend(prediction)
-            labelsfull.extend(label.int().tolist())
+            predictionsfull.extend(prediction) #saving for pad removal and pack conversion
             del context, label, prediction #memory
         gc.collect()#memory
         torch.cuda.empty_cache()#memory
         # print('\n')
         # gpu_usage()
 
+        #converting to flat list
+        contextfull = [item for sublist in contextfull for item in sublist]
+        print("--- Removing Pads and Finding Test Accuracy --- %s seconds ---" % (round((time.time() - start_time),2)))
         #remove pads and do acc calculation:
-        padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
-        for index in sorted(padindicies, reverse=True):
-            del labelsfull[index]
-            del predictionsfull[index]
+        # padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+        # for index in sorted(padindicies, reverse=True):
+        #     del labelsfull[index]
+        #     del predictionsfull[index]
+        #     del contextfull[index]
         metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
-        metric_list.append(metricscore)
-    print('--- Epoch: {} | Test Accuracy: {} ---'.format(epoch+1, metric_list[-1]))
+    print('--- Test Accuracy: {} ---'.format(metricscore))
+    print("--- Formatting Results for conlleval.py Official Evaluation --- %s seconds ---" % (round((time.time() - start_time),2)))
+    formattedcontexts = []
+    formattedlabels = []
+    formattedpredictions = []
+    for element in labelsfull: #convert to real words and labels
+        formattedlabels.extend(labelindex[element])
+    for element in predictionsfull:
+        formattedpredictions.extend(labelindex[element])
+    for element in contextfull:
+        formattedcontexts.extend(wordindex[element])
+    #write to file
+    print(len(formattedpredictions))
+    print(len(formattedcontexts))
+    print(len(formattedlabels))
+    fname = 'LSTMresults.txt'
+    if os.path.exists(fname):
+        os.remove(fname)
+    f = open(fname,'w')
+    for (i,element) in enumerate(labelsfull):
+        f.write(formattedcontexts[i] + ' ' + formattedlabels[i] + ' ' + formattedpredictions[i] + '\n')
+    f.close()
+    evaluate_conll_file(open(fname,'r'))
+    
 
-
+    
 if __name__ == "__main__":
     main()
