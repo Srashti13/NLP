@@ -256,33 +256,21 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
             yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
             # yhats = self.act(out) #don't need bc/ cross entropy
             # print(yhats.shape)
-            # print(yhats[2])
             return yhats 
 
     #initalize model parameters and variables
     losses = []
-    def loss_fn(outputs, labels):  #custom loss function needed b/c don't want to test on pads # https://cs230-stanford.github.io/pytorch-nlp.html
-        # reshape labels to give a flat vector of length batch_size*seq_len
-        
-        # mask out 'PAD' tokens so we don't train those
-        mask = (labels > 0).float()
-
-        #weights for loss function imbalance
-        weights = (labels > 1).float() *100
-
-        # the number of tokens is the sum of elements in mask
-        num_tokens = int(torch.sum(mask).item())
-        
-        # pick the values corresponding to labels and multiply by mask
-        outputs = outputs[range(outputs.shape[0]), labels]*mask
-
-        #add class weights
-        outputs = outputs[range(outputs.shape[0]), labels]*weights
-        
-        # cross entropy loss for all non 'PAD' tokens
-        return -torch.sum(outputs)/num_tokens
-
-    weights = [0.00001, .05,1,1,1,1,1,1,1,1] #zero out pads and reduce weights given to "O" objects in loss function
+    def class_proportional_weights(train_labels):
+        '''
+        helper function to scale weights of classes in loss function based on their sampled proportions
+        '''
+        weights = []
+        flat_train_labels = [item for sublist in train_labels for item in sublist]
+        for lab in range(1,10):
+            weights.append(1-(flat_train_labels.count(lab)/(len(flat_train_labels)-flat_train_labels.count(0)))) #proportional to number without tags
+        weights.insert(0,0) #zero padding values weight
+        return weights
+    weights = class_proportional_weights(vectorized_data['train_context_label_array'].tolist()) #zero out pads and reduce weights given to "O" objects in loss function
     class_weights = torch.FloatTensor(weights).cuda()
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
