@@ -265,7 +265,7 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
         # reshape labels to give a flat vector of length batch_size*seq_len
         
         # mask out 'PAD' tokens
-        mask = (labels > -1).float()
+        mask = (labels > 0).float()
         # the number of tokens is the sum of elements in mask
         num_tokens = int(torch.sum(mask).item())
         
@@ -332,11 +332,11 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
             # print('\n')
             # gpu_usage()
 
-            #remove pads and do acc calculation:
-            # padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
-            # for index in sorted(padindicies, reverse=True):
-            #     del labelsfull[index]
-            #     del predictionsfull[index]
+            # remove pads and do acc calculation:
+            padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+            for index in sorted(padindicies, reverse=True):
+                del labelsfull[index]
+                del predictionsfull[index]
             metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
             metric_list.append(metricscore)
         print('--- Epoch: {} | Validation Accuracy: {} ---'.format(epoch+1, metric_list[-1])) 
@@ -377,11 +377,11 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
         contextfull = [item for sublist in contextfull for item in sublist]
         print("--- Removing Pads and Finding Test Accuracy --- %s seconds ---" % (round((time.time() - start_time),2)))
         #remove pads and do acc calculation:
-        # padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
-        # for index in sorted(padindicies, reverse=True):
-        #     del labelsfull[index]
-        #     del predictionsfull[index]
-        #     del contextfull[index]
+        padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+        for index in sorted(padindicies, reverse=True):
+            del labelsfull[index]
+            del predictionsfull[index]
+            del contextfull[index]
         metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
     print('--- Test Accuracy: {} ---'.format(metricscore))
     print("--- Formatting Results for conlleval.py Official Evaluation --- %s seconds ---" % (round((time.time() - start_time),2)))
@@ -395,9 +395,6 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
     for element in contextfull:
         formattedcontexts.extend(wordindex[element])
     #write to file
-    print(len(formattedpredictions))
-    print(len(formattedcontexts))
-    print(len(formattedlabels))
     fname = 'LSTMresults.txt'
     if os.path.exists(fname):
         os.remove(fname)
@@ -406,8 +403,6 @@ def run_RNN(vectorized_data, vocab, totalpadlength, wordindex, labelindex):
         f.write(formattedcontexts[i] + ' ' + formattedlabels[i] + ' ' + formattedpredictions[i] + '\n')
     f.close()
     evaluate_conll_file(open(fname,'r'))
-    
-
     
 if __name__ == "__main__":
     main()

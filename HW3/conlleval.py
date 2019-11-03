@@ -126,7 +126,6 @@ def count_chunks(true_seqs, pred_seqs):
             correct_counts[true_tag] += 1
         true_counts[true_tag] += 1
         pred_counts[pred_tag] += 1
-
         _, true_type = split_tag(true_tag)
         _, pred_type = split_tag(pred_tag)
 
