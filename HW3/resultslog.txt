@@ -1,0 +1,190 @@
+--- Start Program --- 0.0 seconds ---
+--- Text Extracted --- 1.22 seconds ---
+--- Text Extracted --- 1.52 seconds ---
+--- Text Extracted --- 1.86 seconds ---
+--- Arrays Created --- 2.7 seconds ---
+--- Building Pretrained Embedding Index  --- 2.73 seconds ---
+50.32% (14316/28450) of the vocabulary were in the pre-trained embedding.
+----Using RNN-----
+Start Training --- 71.14 seconds ---
+--- Epoch: 1 | Validation Accuracy (non-O): 0.5045914215971173 ---
+--- Epoch: 2 | Validation Accuracy (non-O): 0.5209810531210043 ---
+--- Epoch: 3 | Validation Accuracy (non-O): 0.5921190282459607 ---
+--- Epoch: 4 | Validation Accuracy (non-O): 0.6154829710566082 ---
+--- Epoch: 5 | Validation Accuracy (non-O): 0.6464024177612461 ---
+--- Epoch: 6 | Validation Accuracy (non-O): 0.6515169127048704 ---
+--- Epoch: 7 | Validation Accuracy (non-O): 0.6396605835173776 ---
+--- Epoch: 8 | Validation Accuracy (non-O): 0.6626758107636871 ---
+--- Epoch: 9 | Validation Accuracy (non-O): 0.6391956294315936 ---
+...Stopping Early...
+Training Complete --- 114.16 seconds ---
+--- Removing Pads and Finding Test Accuracy --- 115.33 seconds ---
+--- Test Accuracy: 0.8567693824197489 ---
+--- Formatting Results for conlleval.py Official Evaluation --- 120.31 seconds ---
+--- RNN--bidir=False--hidden_size=256--pretrain=True--results ---
+processed 46666 tokens with 5648 phrases; found: 8759 phrases; correct: 3200.
+accuracy:  62.40%; (non-O)
+accuracy:  85.68%; precision:  36.53%; recall:  56.66%; FB1:  44.42
+              LOC: precision:  50.14%; recall:  76.38%; FB1:  60.54  2541
+             MISC: precision:  19.76%; recall:  47.29%; FB1:  27.88  1680
+              ORG: precision:  28.06%; recall:  49.79%; FB1:  35.89  2947
+              PER: precision:  48.21%; recall:  47.43%; FB1:  47.82  1591
+----Using RNN-----
+Start Training --- 120.88 seconds ---
+--- Epoch: 1 | Validation Accuracy (non-O): 0.4791351854004417 ---
+--- Epoch: 2 | Validation Accuracy (non-O): 0.5245844472858305 ---
+--- Epoch: 3 | Validation Accuracy (non-O): 0.5559688480762525 ---
+--- Epoch: 4 | Validation Accuracy (non-O): 0.6316401255376032 ---
+--- Epoch: 5 | Validation Accuracy (non-O): 0.6328025107520633 ---
+--- Epoch: 6 | Validation Accuracy (non-O): 0.6486109496687202 ---
+--- Epoch: 7 | Validation Accuracy (non-O): 0.6577937928629548 ---
+--- Epoch: 8 | Validation Accuracy (non-O): 0.6740671858653958 ---
+--- Epoch: 9 | Validation Accuracy (non-O): 0.6651168197140532 ---
+--- Epoch: 10 | Validation Accuracy (non-O): 0.6903405788678368 ---
+--- Epoch: 11 | Validation Accuracy (non-O): 0.6805765430663722 ---
+--- Epoch: 12 | Validation Accuracy (non-O): 0.692781587818203 ---
+--- Epoch: 13 | Validation Accuracy (non-O): 0.7066139718702779 ---
+--- Epoch: 14 | Validation Accuracy (non-O): 0.7075438800418459 ---
+--- Epoch: 15 | Validation Accuracy (non-O): 0.7051028710914797 ---
+--- Epoch: 16 | Validation Accuracy (non-O): 0.6882482854818087 ---
+...Stopping Early...
+Training Complete --- 226.77 seconds ---
+--- Removing Pads and Finding Test Accuracy --- 228.77 seconds ---
+--- Test Accuracy: 0.8907770111001586 ---
+--- Formatting Results for conlleval.py Official Evaluation --- 233.76 seconds ---
+--- RNN--bidir=True--hidden_size=256--pretrain=True--results ---
+processed 46666 tokens with 5648 phrases; found: 7320 phrases; correct: 3435.
+accuracy:  66.32%; (non-O)
+accuracy:  89.08%; precision:  46.93%; recall:  60.82%; FB1:  52.98
+              LOC: precision:  54.33%; recall:  76.38%; FB1:  63.49  2345
+             MISC: precision:  38.20%; recall:  53.28%; FB1:  44.50  979
+              ORG: precision:  38.80%; recall:  52.86%; FB1:  44.75  2263
+              PER: precision:  52.45%; recall:  56.22%; FB1:  54.27  1733
+----Using GRU-----
+Start Training --- 234.34 seconds ---
+--- Epoch: 1 | Validation Accuracy (non-O): 0.6239683831221667 ---
+--- Epoch: 2 | Validation Accuracy (non-O): 0.7124258979425782 ---
+--- Epoch: 3 | Validation Accuracy (non-O): 0.7277693827734512 ---
+--- Epoch: 4 | Validation Accuracy (non-O): 0.7194002092293386 ---
+--- Epoch: 5 | Validation Accuracy (non-O): 0.741136812739742 ---
+--- Epoch: 6 | Validation Accuracy (non-O): 0.7542717656631408 ---
+--- Epoch: 7 | Validation Accuracy (non-O): 0.7605486458212252 ---
+--- Epoch: 8 | Validation Accuracy (non-O): 0.7335813088457515 ---
+--- Epoch: 9 | Validation Accuracy (non-O): 0.7402069045681738 ---
+--- Epoch: 10 | Validation Accuracy (non-O): 0.7535743345344648 ---
+--- Epoch: 11 | Validation Accuracy (non-O): 0.7439265372544461 ---
+--- Epoch: 12 | Validation Accuracy (non-O): 0.7216087411368127 ---
+...Stopping Early...
+Training Complete --- 298.63 seconds ---
+--- Removing Pads and Finding Test Accuracy --- 299.91 seconds ---
+--- Test Accuracy: 0.9006342947756396 ---
+--- Formatting Results for conlleval.py Official Evaluation --- 304.91 seconds ---
+--- GRU--bidir=False--hidden_size=256--pretrain=True--results ---
+processed 46666 tokens with 5648 phrases; found: 7083 phrases; correct: 3571.
+accuracy:  68.93%; (non-O)
+accuracy:  90.06%; precision:  50.42%; recall:  63.23%; FB1:  56.10
+              LOC: precision:  61.38%; recall:  78.42%; FB1:  68.86  2131
+             MISC: precision:  42.71%; recall:  52.56%; FB1:  47.13  864
+              ORG: precision:  41.58%; recall:  58.58%; FB1:  48.64  2340
+              PER: precision:  52.69%; recall:  56.96%; FB1:  54.74  1748
+----Using GRU-----
+Start Training --- 305.5 seconds ---
+--- Epoch: 1 | Validation Accuracy (non-O): 0.6731372776938277 ---
+--- Epoch: 2 | Validation Accuracy (non-O): 0.7504358944554226 ---
+--- Epoch: 3 | Validation Accuracy (non-O): 0.7645007555503894 ---
+--- Epoch: 4 | Validation Accuracy (non-O): 0.7697314890154597 ---
+--- Epoch: 5 | Validation Accuracy (non-O): 0.7843775427176566 ---
+--- Epoch: 6 | Validation Accuracy (non-O): 0.7796117633383703 ---
+--- Epoch: 7 | Validation Accuracy (non-O): 0.7717075438800418 ---
+--- Epoch: 8 | Validation Accuracy (non-O): 0.8009996512844356 ---
+--- Epoch: 9 | Validation Accuracy (non-O): 0.7957689178193653 ---
+--- Epoch: 10 | Validation Accuracy (non-O): 0.7872835057538068 ---
+--- Epoch: 11 | Validation Accuracy (non-O): 0.775194699523422 ---
+--- Epoch: 12 | Validation Accuracy (non-O): 0.7592700220853191 ---
+...Stopping Early...
+Training Complete --- 401.88 seconds ---
+--- Removing Pads and Finding Test Accuracy --- 403.48 seconds ---
+--- Test Accuracy: 0.9231560450863584 ---
+--- Formatting Results for conlleval.py Official Evaluation --- 408.53 seconds ---
+--- GRU--bidir=True--hidden_size=256--pretrain=True--results ---
+processed 46666 tokens with 5648 phrases; found: 6432 phrases; correct: 3877.
+accuracy:  73.26%; (non-O)
+accuracy:  92.32%; precision:  60.28%; recall:  68.64%; FB1:  64.19
+              LOC: precision:  70.14%; recall:  77.04%; FB1:  73.43  1832
+             MISC: precision:  50.29%; recall:  61.82%; FB1:  55.46  863
+              ORG: precision:  54.41%; recall:  66.16%; FB1:  59.71  2020
+              PER: precision:  61.68%; recall:  65.49%; FB1:  63.53  1717
+----Using LSTM-----
+Start Training --- 409.15 seconds ---
+--- Epoch: 1 | Validation Accuracy (non-O): 0.6247820527722887 ---
+--- Epoch: 2 | Validation Accuracy (non-O): 0.7183540625363245 ---
+--- Epoch: 3 | Validation Accuracy (non-O): 0.7467162617691503 ---
+--- Epoch: 4 | Validation Accuracy (non-O): 0.7459025921190282 ---
+--- Epoch: 5 | Validation Accuracy (non-O): 0.7504358944554226 ---
+--- Epoch: 6 | Validation Accuracy (non-O): 0.757410205742183 ---
+--- Epoch: 7 | Validation Accuracy (non-O): 0.7664768104149715 ---
+--- Epoch: 8 | Validation Accuracy (non-O): 0.7627571777286993 ---
+--- Epoch: 9 | Validation Accuracy (non-O): 0.7533418574915727 ---
+--- Epoch: 10 | Validation Accuracy (non-O): 0.7492735092409625 ---
+...Stopping Early...
+Training Complete --- 463.69 seconds ---
+--- Removing Pads and Finding Test Accuracy --- 464.59 seconds ---
+--- Test Accuracy: 0.9086915527364676 ---
+--- Formatting Results for conlleval.py Official Evaluation --- 469.57 seconds ---
+--- LSTM--bidir=False--hidden_size=256--pretrain=True--results ---
+processed 46666 tokens with 5648 phrases; found: 6742 phrases; correct: 3689.
+accuracy:  69.28%; (non-O)
+accuracy:  90.87%; precision:  54.72%; recall:  65.32%; FB1:  59.55
+              LOC: precision:  62.08%; recall:  81.35%; FB1:  70.42  2186
+             MISC: precision:  51.71%; recall:  56.13%; FB1:  53.83  762
+              ORG: precision:  45.01%; recall:  59.18%; FB1:  51.13  2184
+              PER: precision:  59.32%; recall:  59.06%; FB1:  59.19  1610
+----Using LSTM-----
+Start Training --- 470.15 seconds ---
+--- Epoch: 1 | Validation Accuracy (non-O): 0.6872021387887947 ---
+--- Epoch: 2 | Validation Accuracy (non-O): 0.7808903870742764 ---
+--- Epoch: 3 | Validation Accuracy (non-O): 0.7872835057538068 ---
+--- Epoch: 4 | Validation Accuracy (non-O): 0.7761246076949901 ---
+--- Epoch: 5 | Validation Accuracy (non-O): 0.7870510287109148 ---
+--- Epoch: 6 | Validation Accuracy (non-O): 0.7971637800767174 ---
+--- Epoch: 7 | Validation Accuracy (non-O): 0.7910031384400791 ---
+--- Epoch: 8 | Validation Accuracy (non-O): 0.8011158898058817 ---
+--- Epoch: 9 | Validation Accuracy (non-O): 0.8012321283273277 ---
+--- Epoch: 10 | Validation Accuracy (non-O): 0.7929791933046612 ---
+--- Epoch: 11 | Validation Accuracy (non-O): 0.7928629547832151 ---
+--- Epoch: 12 | Validation Accuracy (non-O): 0.7985586423340695 ---
+--- Epoch: 13 | Validation Accuracy (non-O): 0.789259560618389 ---
+...Stopping Early...
+Training Complete --- 563.54 seconds ---
+--- Removing Pads and Finding Test Accuracy --- 564.66 seconds ---
+--- Test Accuracy: 0.9310204431491879 ---
+--- Formatting Results for conlleval.py Official Evaluation --- 569.67 seconds ---
+--- LSTM--bidir=True--hidden_size=256--pretrain=True--results ---
+processed 46666 tokens with 5648 phrases; found: 6001 phrases; correct: 3957.
+accuracy:  74.08%; (non-O)
+accuracy:  93.10%; precision:  65.94%; recall:  70.06%; FB1:  67.94
+              LOC: precision:  77.25%; recall:  79.38%; FB1:  78.30  1714
+             MISC: precision:  59.36%; recall:  60.54%; FB1:  59.94  716
+              ORG: precision:  57.66%; recall:  68.87%; FB1:  62.77  1984
+              PER: precision:  67.04%; recall:  65.80%; FB1:  66.42  1587
+----Using LSTM-----
+Start Training --- 570.36 seconds ---
+--- Epoch: 1 | Validation Accuracy (non-O): 0.821341392537487 ---
+--- Epoch: 2 | Validation Accuracy (non-O): 0.8461001976054865 ---
+--- Epoch: 3 | Validation Accuracy (non-O): 0.8452865279553644 ---
+--- Epoch: 4 | Validation Accuracy (non-O): 0.8515634081134488 ---
+--- Epoch: 5 | Validation Accuracy (non-O): 0.8380797396257119 ---
+--- Epoch: 6 | Validation Accuracy (non-O): 0.8186679065442287 ---
+...Stopping Early...
+Training Complete --- 615.03 seconds ---
+--- Removing Pads and Finding Test Accuracy --- 616.15 seconds ---
+--- Test Accuracy: 0.9257275103930056 ---
+--- Formatting Results for conlleval.py Official Evaluation --- 621.17 seconds ---
+--- LSTM--bidir=True--hidden_size=256--pretrain=False--results ---
+processed 46666 tokens with 5648 phrases; found: 6619 phrases; correct: 4120.
+accuracy:  78.88%; (non-O)
+accuracy:  92.57%; precision:  62.25%; recall:  72.95%; FB1:  67.17
+              LOC: precision:  72.44%; recall:  81.29%; FB1:  76.61  1872
+             MISC: precision:  56.24%; recall:  67.38%; FB1:  61.31  841
+              ORG: precision:  51.11%; recall:  70.50%; FB1:  59.26  2291
+              PER: precision:  69.35%; recall:  69.26%; FB1:  69.31  1615

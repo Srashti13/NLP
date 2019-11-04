@@ -7,44 +7,62 @@ Command to run the file: python HW3.py
 #%%
 
 import re
+import os
 from collections import defaultdict
+import itertools
 import numpy as np
 import time
 import torch.utils.data as data_utils
 import torch
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.nn as nn 
 import gc
 from sklearn.metrics import accuracy_score
-
-
+from conlleval import evaluate_conll_file
+import math
 
 start_time = time.time()
 
 def main():
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
-    train_vocab, train_sentences, totalpadlength, train_sentence_lengths = get_sentences(r"conll2003\train.txt")
-    valid_vocab, valid_sentences, _, valid_sentence_lengths = get_sentences(r"conll2003\valid.txt")
-    test_vocab, test_sentences, _, test_sentence_lengths = get_sentences(r"conll2003\test.txt")
-    word_to_ix = dict_combination(train_vocab, valid_vocab, test_vocab)
-    vectorized_data = get_context_vectors(word_to_ix, train_sentences, valid_sentences, test_sentences)
-    weights_matrix = build_weights_matrix(word_to_ix, "GoogleNews-vectors-negative300.txt",
-                                      300)
-    run_RNN(vectorized_data, word_to_ix, totalpadlength, train_sentence_lengths,
-            valid_sentence_lengths,test_sentence_lengths, weights_matrix)
+    train_vocab, train_sentences = get_sentences(r"conll2003\train.txt")
+    valid_vocab, valid_sentences = get_sentences(r"conll2003\valid.txt")
+    test_vocab, test_sentences = get_sentences(r"conll2003\test.txt")
+    vocab = dict_combination(train_vocab, valid_vocab, test_vocab)
+    vectorized_data, wordindex, labelindex = get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
+    weights_matrix_torch = build_weights_matrix(vocab, "GoogleNews-vectors-negative300.txt", embedding_dim=300)
+
+    #run models
+    run_RNN(vectorized_data, vocab, wordindex, labelindex, weights_matrix_torch, 
+            hidden_dim=256, bidirectional=False, pretrained_embeddings_status=True, RNNTYPE="RNN")
+    run_RNN(vectorized_data, vocab, wordindex, labelindex,weights_matrix_torch, 
+            hidden_dim=256, bidirectional=True, pretrained_embeddings_status=True, RNNTYPE="RNN")
+
+    run_RNN(vectorized_data, vocab, wordindex, labelindex, weights_matrix_torch, 
+            hidden_dim=256, bidirectional=False, pretrained_embeddings_status=True, RNNTYPE="GRU")
+    run_RNN(vectorized_data, vocab, wordindex, labelindex, weights_matrix_torch, 
+            hidden_dim=256, bidirectional=True, pretrained_embeddings_status=True, RNNTYPE="GRU")
+
+    run_RNN(vectorized_data, vocab, wordindex, labelindex, weights_matrix_torch, 
+            hidden_dim=256, bidirectional=False, pretrained_embeddings_status=True, RNNTYPE="LSTM")
+    run_RNN(vectorized_data, vocab, wordindex, labelindex, weights_matrix_torch, 
+            hidden_dim=256, bidirectional=True, pretrained_embeddings_status=True, RNNTYPE="LSTM")
+
+    run_RNN(vectorized_data, vocab, wordindex, labelindex, weights_matrix_torch, 
+            hidden_dim=256, bidirectional=True, pretrained_embeddings_status=False, RNNTYPE="LSTM")
     return
 
 def dict_combination(dictone,dicttwo,dictthree):
     '''
     Helper function to combine three dictionaries into one and keep the unique set of values for all keys
     '''
+    combined = defaultdict()
     ds = [dictone, dicttwo,dictthree]
-    total_vocab = []
     for k in list(set(list(ds[0].keys()) + list(ds[1].keys())+list(ds[2].keys()))):
-        total_vocab.append(k)
-    vocab_index = {v:i+1 for i,v in enumerate(total_vocab)}
-    vocab_index['<pad>'] = 0
-    return vocab_index
+        value = list(d[k] for d in ds)
+        combined[k] = list(set([item for sublist in value for item in sublist]))
+    return combined
 
 def get_sentences(docs):
 
@@ -54,7 +72,6 @@ def get_sentences(docs):
     def lowercase_text(txt):
         txt = re.sub('([A-Z]+[a-z]+)',lower_repl,txt) #lowercase words that start with captial    
         return txt   
-
 
     vocab = defaultdict(list)
     doc = []
@@ -83,29 +100,22 @@ def get_sentences(docs):
     for i in range(len(sentence_ends)-1):
         sentences.append(doc[sentence_ends[i]+1:sentence_ends[i+1]])
         
-    # there's an extra line on the end that needs to be removed
-    sentences = sentences[:-1]  
-    # getting the longest sentence
-    max(sentences, key=len)
     # getting the length of the longest sentence
     max_sent_len = len(max(sentences, key=len))
 
     ## padding all of the sentences to make them length 113
-    sentence_lengths = []
     for sentence in sentences:
-        sentence_lengths.append(len(sentence))
-        sentence.extend(['<pad>','<pad>'] for i in range(max_sent_len-len(sentence)))
-        
-    sentence_lengths = torch.LongTensor(sentence_lengths)
-    # This is the code to read the embeddings    
+        sentence.extend(['0','<pad>'] for i in range(max_sent_len-len(sentence)))
+    # This is the code to read the embeddings
+    vocab['0'] = '<pad>'
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return vocab, sentences, max_sent_len, sentence_lengths
+    return vocab, sentences
 
-def get_context_vectors(word_to_ix, train_sentences, valid_sentences, test_sentences):
+def get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences):
     '''
     convert to numpy vectors 
     '''
-
+    word_to_ix = {word: i for i, word in enumerate(vocab)} #index vocabulary
     labels_to_ix = {"<pad>":0, "O":1, "B-ORG":2, "B-PER":3, "B-LOC":4, "B-MISC":5, "I-ORG":6, "I-PER":7, "I-LOC":8, "I-MISC":9}
 
     train_context_values = [] #array of word index for context
@@ -140,21 +150,34 @@ def get_context_vectors(word_to_ix, train_sentences, valid_sentences, test_sente
                         "test_context_array":test_context_array,
                         "test_context_label_array":test_context_label_array}
 
+
+    #used to back convert to words from index
+    ix_to_word = {} 
+    for key, value in word_to_ix.items(): 
+        if value in ix_to_word: 
+            ix_to_word[value].append(key) 
+            print(value)
+            print(key)
+            print(ix_to_word[value])
+        else: 
+            ix_to_word[value]=[key] 
+
+    #used to back convert to words from index
+    ix_to_label = {} 
+    for key, value in labels_to_ix.items(): 
+        if value in ix_to_label: 
+            ix_to_label[value].append(key) 
+            print(value)
+            print(key)
+            print(ix_to_label[value])
+        else: 
+            ix_to_label[value]=[key] 
+
     print("--- Arrays Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return arrays_and_labels
+    return arrays_and_labels, ix_to_word, ix_to_label
 
-def format_tensors(vectorized_data, dataset_type,seq_lens, batch_size):
-    # set datatypes
-    X = torch.from_numpy(vectorized_data[dataset_type+'_context_array'])
-    X = X.long()
-    y = torch.from_numpy(vectorized_data[dataset_type+'_context_label_array'])
-    y = y.long()
-    # create datasets for loading into models
-    tensordata = data_utils.TensorDataset(X,y,seq_lens)
-    loader = data_utils.DataLoader(tensordata, batch_size=batch_size,shuffle=True)
-    return loader
-
-def build_weights_matrix(vocab, embedding_file,embedding_dim):
+def build_weights_matrix(vocab, embedding_file, embedding_dim):
+    print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
     words = []
     embeddings_index = {}
     with open (embedding_file, encoding="utf8") as f:
@@ -164,123 +187,128 @@ def build_weights_matrix(vocab, embedding_file,embedding_dim):
             words.append(word)
             embedding = np.asarray(values[1:], dtype='float32')
             embeddings_index[word] = embedding
+
+    
     matrix_len = len(vocab)
     weights_matrix = np.zeros((matrix_len, embedding_dim)) # 200 is depth of embedding matrix
     words_found = 0
     words_not_found = 0
-    for word in vocab:
+    for i, word in enumerate(vocab):
         try:
-            weights_matrix[vocab[word]] = embeddings_index[word]
+            weights_matrix[i] = embeddings_index[word]
             words_found += 1
         
         except KeyError:
-            weights_matrix[vocab[word]] = np.random.normal(scale=0.6, size=(embedding_dim,)) #randomize out of vocabulary words
+            weights_matrix[i] = np.random.normal(scale=0.6, size=(embedding_dim,)) #randomize out of vocabulary words
             words_not_found += 1
             
     print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
-    weights_matrix_torch = torch.from_numpy(weights_matrix)
-    return weights_matrix_torch
+    return torch.from_numpy(weights_matrix)
 
-def run_RNN(vectorized_data, vocab, totalpadlength, train_sentence_lengths,
-            valid_sentence_lengths, test_sentence_lengths, weights_matrix):
+def run_RNN(vectorized_data, vocab, wordindex, labelindex, 
+            weights_matrix_torch, hidden_dim, bidirectional=False,pretrained_embeddings_status=True, 
+            RNNTYPE="RNN"):
     '''
     This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
     '''
-    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
 
+    def format_tensors(vectorized_data, dataset_type,num_mini_batches):
+        X = torch.from_numpy(vectorized_data[dataset_type+'_context_array'])
+        X = X.long()
+        batch_size = math.ceil(X.size(0)/num_mini_batches) # 200 mini-batches per epoch
+        y = torch.from_numpy(vectorized_data[dataset_type+'_context_label_array'])
+        y = y.long()
+        tensordata = data_utils.TensorDataset(X,y)
+        loader = data_utils.DataLoader(tensordata, batch_size=batch_size,shuffle=False)
+        return loader
 
-    trainloader = format_tensors(vectorized_data, 'train',
-                                 train_sentence_lengths, BATCH_SIZE)
-    validloader = format_tensors(vectorized_data, 'valid',
-                                 valid_sentence_lengths, BATCH_SIZE)
-    testloader = format_tensors(vectorized_data, 'test',
-                                 test_sentence_lengths, BATCH_SIZE)
-    
-    print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
-    EMBEDDING_DIM = 300 # embeddings dimensions
-    HIDDEN_SIZE = 120
-    CONTEXT_SIZE = totalpadlength #sentence size
-    
+    # building data loaders
+    NUM_MINI_BATCHES = 200
+    trainloader = format_tensors(vectorized_data,'train',NUM_MINI_BATCHES)
+    validloader = format_tensors(vectorized_data,'valid',NUM_MINI_BATCHES)
+    testloader = format_tensors(vectorized_data,'test',NUM_MINI_BATCHES)
     
     def create_emb_layer(weights_matrix, non_trainable=False):
         num_embeddings, embedding_dim = weights_matrix.size()
-        emb_layer = nn.Embedding(num_embeddings, embedding_dim, padding_idx=vocab['<pad>'])
+        emb_layer = nn.Embedding(num_embeddings, embedding_dim)
         emb_layer.load_state_dict({'weight':weights_matrix})
         if non_trainable:
             emb_layer.weight.requires_grad = False
         return emb_layer, num_embeddings, embedding_dim
     
     class RNNmodel(nn.Module):
-        def __init__(self, weights_matrix, context_size, hidden_size):
+        def __init__(self, weights_matrix, hidden_size, bidirectional, pre_trained=True):
             super(RNNmodel, self).__init__()
-            print('----Using LSTM (Pre-trained Embeddings)----')
-            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
-            self.rnn = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
-            self.fc = nn.Linear(hidden_size,10)
-            self.act = nn.Softmax(dim=1) #CrossEntropyLoss takes care of this
+            if bidirectional:
+                num_directions = 2
+            else:
+                num_directions = 1
+            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, pre_trained)
+            if RNNTYPE=="LSTM":
+                print("----Using LSTM-----")
+                self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional)
+            elif RNNTYPE=="GRU":
+                print("----Using GRU-----")
+                self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional)
+            else:
+                print("----Using RNN-----")
+                self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional)
+            self.fc = nn.Linear(hidden_size*num_directions,10)
             
-        def forward(self, inputs, context_size, embedding_dim, seq_lens):
+        def forward(self, inputs):
             # print(inputs.shape) # dim: batch_size x batch_max_len
             embeds = self.embedding(inputs) # dim: batch_size x batch_max_len x embedding_dim
             # print(embeds.shape)
-            packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, seq_lens,batch_first=True)
-            out, _ = self.rnn(packed) # dim: batch_size x batch_max_len x lstm_hidden_dim 
-
-            # dim: [batch_size x batch_max_len x lstm_hidden_dim]
-            out, _ = torch.nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
-            
+            out, _ = self.rnn(embeds) # dim: batch_size x batch_max_len x lstm_hidden_dim*directions 
+            # print(out.shape)
             out = out.contiguous().view(-1, out.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
             # print(out.shape)
-            out = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
-            yhats = self.act(out)
-            # print(yhats.shape)
-            # print(yhats[2])
-            return yhats 
-    
+            yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
+            return yhats #CrossEntropy in pytorch takes care of softmax here
+
     #initalize model parameters and variables
     losses = []
-    def loss_fn(outputs, labels):  #custom loss function needed b/c don't want to test on pads # https://cs230-stanford.github.io/pytorch-nlp.html
-        # reshape labels to give a flat vector of length batch_size*seq_len
-        
-        # mask out 'PAD' tokens
-        mask = (labels > 0).float()
-        # the number of tokens is the sum of elements in mask
-        num_tokens = int(torch.sum(mask).item())
-        
-        # pick the values corresponding to labels and multiply by mask
-        outputs = outputs[range(outputs.shape[0]), labels]*mask
-        
-        # cross entropy loss for all non 'PAD' tokens
-        return -torch.sum(outputs)/num_tokens
+    def class_proportional_weights(train_labels):
+        '''
+        helper function to scale weights of classes in loss function based on their sampled proportions
+        '''
+        weights = []
+        flat_train_labels = [item for sublist in train_labels for item in sublist]
+        for lab in range(1,10):
+            weights.append(1-(flat_train_labels.count(lab)/(len(flat_train_labels)-flat_train_labels.count(0)))) #proportional to number without tags
+        weights.insert(0,0) #zero padding values weight
+        return weights
+    weights = class_proportional_weights(vectorized_data['train_context_label_array'].tolist()) #zero out pads and reduce weights given to "O" objects in loss function
+    class_weights = torch.FloatTensor(weights).cuda()
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-    model = RNNmodel(weights_matrix, CONTEXT_SIZE, HIDDEN_SIZE)
+    model = RNNmodel(weights_matrix_torch, hidden_dim, bidirectional, pretrained_embeddings_status)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
 
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.0001) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.Adam(model.parameters(), lr=0.005) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     metric_list = []
     best_metric = 0 
-    print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(10): 
+    print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
+    for epoch in range(50): 
         iteration = 0
         running_loss = 0.0 
-        for i, (context, label, sentence_lengths) in enumerate(trainloader):
-            sentence_lengths, desc_idx = sentence_lengths.sort(0,descending=True)
-            context = context[desc_idx]
-            label = label.view(-1,113)
-            label = label[desc_idx,:max(sentence_lengths).item()]
+        for i, (context, label) in enumerate(trainloader):
             # zero out the gradients from the old instance
             optimizer.zero_grad()
             # Run the forward pass and get predicted output
             label = label.contiguous().view(-1) # convert to length batch_size*seq_len
             context = context.to(device)
             label = label.to(device)
-            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM, sentence_lengths) #required dimensions for batching
+            yhat = model.forward(context) #required dimensions for batching
             # Compute Binary Cross-Entropy
-            loss = loss_fn(yhat, label)
+            loss = criterion(yhat, label)
             #clear memory 
             del context, label #memory 
             # Do the backward pass and update the gradient
@@ -299,22 +327,13 @@ def run_RNN(vectorized_data, vocab, totalpadlength, train_sentence_lengths,
         with torch.no_grad():
             predictionsfull = []
             labelsfull = []
-            for a, (context, label, sentence_lengths) in enumerate(validloader):
-                sentence_lengths, desc_idx = sentence_lengths.sort(0,descending=True)
-                context = context[desc_idx]
-                label = label.view(-1,109)
-                label = label[desc_idx,:max(sentence_lengths).item()]
+            for a, (context, label) in enumerate(validloader):
                 label = label.contiguous().view(-1) # convert to length batch_size*seq_len
                 context = context.to(device)
                 label = label.to(device)
-                yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM, sentence_lengths)
-                # print(yhats.shape)
-                # print(yhats[1])
+                yhats = model.forward(context)
                 index = yhats.max(1)[1] #index position of max value
                 prediction = index.int().tolist()
-                # print([prediction])
-                # print('---')
-                # print([label.int().tolist()])
                 predictionsfull.extend(prediction)
                 labelsfull.extend(label.int().tolist())
                 del context, label, prediction #memory
@@ -323,21 +342,21 @@ def run_RNN(vectorized_data, vocab, totalpadlength, train_sentence_lengths,
             # print('\n')
             # gpu_usage()
 
-            #remove pads and do acc calculation:
-            padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+            # remove pads and "O" and do acc calculation:
+            padindicies = [i for i, x in enumerate(labelsfull) if x == 0 or x==1] 
             for index in sorted(padindicies, reverse=True):
                 del labelsfull[index]
                 del predictionsfull[index]
-            metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
+            metricscore = accuracy_score(labelsfull, predictionsfull) #not sure if they are using macro or micro in competition
             metric_list.append(metricscore)
-        print('--- Epoch: {} | Validation Accuracy: {} ---'.format(epoch+1, metric_list[-1])) 
+        print('--- Epoch: {} | Validation Accuracy (non-O): {} ---'.format(epoch+1, metric_list[-1])) 
 
         if metric_list[-1] > best_metric: #save if it improves validation accuracy 
             best_metric = metric_list[-1]
             bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
         #early stopping condition
         if epoch+1 >= 5: #start looking to stop after this many epochs
-            if metric_list[-1] < min(metric_list[-5:-1]): #if accuracy lower than lowest of last 4 values
+            if metric_list[-1] < min(metric_list[-5:-1]): #if accuracy lower than lowest of last 10 values
                 print('...Stopping Early...')
                 break
 
@@ -347,39 +366,62 @@ def run_RNN(vectorized_data, vocab, totalpadlength, train_sentence_lengths,
     with torch.no_grad():
         predictionsfull = []
         labelsfull = []
-        for a, (context, label, sentence_lengths) in enumerate(testloader):
-            sentence_lengths, desc_idx = sentence_lengths.sort(0,descending=True)
-            context = context[desc_idx]
-            label = label.view(-1,124)
-            label = label[desc_idx,:max(sentence_lengths).item()]
+        contextfull = []
+        for a, (context, label) in enumerate(testloader):
             label = label.contiguous().view(-1) # convert to length batch_size*seq_len
+            labelsfull.extend(label.int().tolist()) #saving for pad removal and pack conversion
+            contextfull.extend(context.int().tolist())
             context = context.to(device)
             label = label.to(device)
-            yhats = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM, sentence_lengths)
-            # print(yhats.shape)
-            # print(yhats[1])
+            yhats = model.forward(context)
             index = yhats.max(1)[1] #index position of max value
             prediction = index.int().tolist()
-            # print([prediction])
-            # print('---')
-            # print([label.int().tolist()])
-            predictionsfull.extend(prediction)
-            labelsfull.extend(label.int().tolist())
+            predictionsfull.extend(prediction) #saving for pad removal and pack conversion
             del context, label, prediction #memory
         gc.collect()#memory
         torch.cuda.empty_cache()#memory
         # print('\n')
         # gpu_usage()
 
+        #converting to flat list
+        contextfull = [item for sublist in contextfull for item in sublist]
+        print("--- Removing Pads and Finding Test Accuracy --- %s seconds ---" % (round((time.time() - start_time),2)))
         #remove pads and do acc calculation:
         padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
         for index in sorted(padindicies, reverse=True):
             del labelsfull[index]
             del predictionsfull[index]
+            del contextfull[index]
         metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
-        metric_list.append(metricscore)
-    print('--- Epoch: {} | Test Accuracy: {} ---'.format(epoch+1, metric_list[-1]))
-
+    print('--- Test Accuracy: {} ---'.format(metricscore))
+    print("--- Formatting Results for conlleval.py Official Evaluation --- %s seconds ---" % (round((time.time() - start_time),2)))
+    formattedcontexts = []
+    formattedlabels = []
+    formattedpredictions = []
+    for element in labelsfull: #convert to real words and labels
+        formattedlabels.extend(labelindex[element])
+    for element in predictionsfull:
+        if element == 0:
+            element = 1 #remove stray <pad> predictions
+        formattedpredictions.extend(labelindex[element])
+    for element in contextfull:
+        formattedcontexts.extend(wordindex[element])
+    #write to file
+    fname = 'results/{}--bidir={}--hidden_size={}--pretrain={}--results.txt'.format(RNNTYPE,bidirectional,hidden_dim,pretrained_embeddings_status)
+    if os.path.exists(fname):
+        os.remove(fname)
+    f = open(fname,'w')
+    for (i,element) in enumerate(labelsfull):
+        f.write(formattedcontexts[i] + ' ' + formattedlabels[i] + ' ' + formattedpredictions[i] + '\n')
+    f.close()
+    print('--- {}--bidir={}--hidden_size={}--pretrain={}--results ---'.format(RNNTYPE,bidirectional,hidden_dim,pretrained_embeddings_status))
+    evaluate_conll_file(open(fname,'r'))
 
 if __name__ == "__main__":
+    # Converting embeddings totext file if not saved already 
+    if not os.path.exists('GoogleNews-vectors-negative300.txt'):
+        from gensim.models.keyedvectors import KeyedVectors
+        print('Word Embeddings not saved as Text file. Converting now... Please wait.')    
+        model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+        model.save_word2vec_format('GoogleNews-vectors-negative300.txt', binary=False)
     main()
