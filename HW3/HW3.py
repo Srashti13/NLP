@@ -3,6 +3,19 @@ AIT726 HW 3 Due 11/07/2019
 Named Entity Recognition using different types of recurrent neural networks.
 Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
 Command to run the file: python HW3.py 
+i. main - runs all the functions
+    i. get_sentences - read the text files and pad them according to the length of
+    the longest sentence (this is done for train, test, and validation)
+    ii. dict_combination - combining all the vocabularies to get one unique vocabulary
+    for the entire corpus
+    iii. get_context_vectors - building the matrices based on the words in each
+    sentence. This also returns word and label indices to map each word or label
+    to its respective row in the matrix
+    iv. build_weights_matrix - takes the information from the GloVe file
+    and builds a matrix with the embeddings
+    v. run_RNN - runs the RNN specified in the function and outputs the accuracy
+    for the validation and test sets
+    
 """
 #%%
 
@@ -33,7 +46,7 @@ def main():
     vectorized_data, wordindex, labelindex = get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
     weights_matrix_torch = build_weights_matrix(vocab, "GoogleNews-vectors-negative300.txt", embedding_dim=300)
 
-    #run models
+    #Run each RNN model with different parameters the best model is the final one
     run_RNN(vectorized_data, vocab, wordindex, labelindex, weights_matrix_torch, 
             hidden_dim=256, bidirectional=False, pretrained_embeddings_status=True, RNNTYPE="RNN")
     run_RNN(vectorized_data, vocab, wordindex, labelindex,weights_matrix_torch, 
@@ -209,7 +222,7 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
             weights_matrix_torch, hidden_dim, bidirectional=False,pretrained_embeddings_status=True, 
             RNNTYPE="RNN"):
     '''
-    This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
+    This function uses pretrained embeddings loaded from a file to build an RNN
     '''
 
     def format_tensors(vectorized_data, dataset_type,num_mini_batches):
@@ -259,17 +272,15 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
             self.fc = nn.Linear(hidden_size*num_directions,10)
             
         def forward(self, inputs):
-            # print(inputs.shape) # dim: batch_size x batch_max_len
             embeds = self.embedding(inputs) # dim: batch_size x batch_max_len x embedding_dim
-            # print(embeds.shape)
             out, _ = self.rnn(embeds) # dim: batch_size x batch_max_len x lstm_hidden_dim*directions 
-            # print(out.shape)
             out = out.contiguous().view(-1, out.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
-            # print(out.shape)
             yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
             return yhats #CrossEntropy in pytorch takes care of softmax here
 
-    #initalize model parameters and variables
+    # This custom loss function is defined to reduce the effect of class imbalance.
+    # Since there are so many samples labeled as "O", this allows the RNN to not 
+    # be weighted too heavily in that area.
     losses = []
     def class_proportional_weights(train_labels):
         '''
@@ -285,6 +296,7 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
     class_weights = torch.FloatTensor(weights).cuda()
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
+    #initalize model parameters and variables
     model = RNNmodel(weights_matrix_torch, hidden_dim, bidirectional, pretrained_embeddings_status)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
 
@@ -339,7 +351,6 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
                 del context, label, prediction #memory
             gc.collect()#memory
             torch.cuda.empty_cache()#memory
-            # print('\n')
             # gpu_usage()
 
             # remove pads and "O" and do acc calculation:
@@ -380,8 +391,7 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
             del context, label, prediction #memory
         gc.collect()#memory
         torch.cuda.empty_cache()#memory
-        # print('\n')
-        # gpu_usage()
+
 
         #converting to flat list
         contextfull = [item for sublist in contextfull for item in sublist]
@@ -418,7 +428,7 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
     evaluate_conll_file(open(fname,'r'))
 
 if __name__ == "__main__":
-    # Converting embeddings totext file if not saved already 
+    # Converting embeddings to text file if not saved already 
     if not os.path.exists('GoogleNews-vectors-negative300.txt'):
         from gensim.models.keyedvectors import KeyedVectors
         print('Word Embeddings not saved as Text file. Converting now... Please wait.')    
