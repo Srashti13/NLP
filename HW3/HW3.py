@@ -11,13 +11,11 @@ i. main - runs all the functions
     iii. get_context_vectors - building the matrices based on the words in each
     sentence. This also returns word and label indices to map each word or label
     to its respective row in the matrix
-    iv. build_weights_matrix - takes the information from the GloVe file
-    and builds a matrix with the embeddings
+    iv. build_weights_matrix - takes the information from the GloVe file and builds a matrix with the embeddings
     v. run_RNN - runs the RNN specified in the function and outputs the accuracy
     for the validation and test sets
     
 """
-#%%
 
 import re
 import os
@@ -38,6 +36,9 @@ import math
 start_time = time.time()
 
 def main():
+    '''
+    Main function gets all docs, converts them into correct format, runs models and produces results 
+    '''
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     train_vocab, train_sentences = get_sentences(r"conll2003\train.txt")
     valid_vocab, valid_sentences = get_sentences(r"conll2003\valid.txt")
@@ -78,7 +79,9 @@ def dict_combination(dictone,dicttwo,dictthree):
     return combined
 
 def get_sentences(docs):
-
+    '''
+    extracts text from data, gets vocab and puts into sentences with labels
+    '''
     # tokenizing: lowercasing all words that have some, but not all, uppercase
     def lower_repl(match):
         return match.group().lower()
@@ -92,7 +95,7 @@ def get_sentences(docs):
         for word in f.read().splitlines():
             a = word.split(" ")
             if len(a)>1:
-                vocab[lowercase_text(a[0])].append(a[3])
+                vocab[lowercase_text(a[0])].append(a[3]) #ad to vocab and to doc as dictionary with tag
                 doc.append([lowercase_text(a[0]),a[3]])
             else: 
                 doc.append(a[0])
@@ -126,10 +129,10 @@ def get_sentences(docs):
 
 def get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences):
     '''
-    convert to numpy vectors 
+    convert to numpy vectors for use by torch
     '''
     word_to_ix = {word: i for i, word in enumerate(vocab)} #index vocabulary
-    labels_to_ix = {"<pad>":0, "O":1, "B-ORG":2, "B-PER":3, "B-LOC":4, "B-MISC":5, "I-ORG":6, "I-PER":7, "I-LOC":8, "I-MISC":9}
+    labels_to_ix = {"<pad>":0, "O":1, "B-ORG":2, "B-PER":3, "B-LOC":4, "B-MISC":5, "I-ORG":6, "I-PER":7, "I-LOC":8, "I-MISC":9} #index labels
 
     train_context_values = [] #array of word index for context
     train_label_values = [] 
@@ -175,7 +178,7 @@ def get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
         else: 
             ix_to_word[value]=[key] 
 
-    #used to back convert to words from index
+    #used to back convert to words from label
     ix_to_label = {} 
     for key, value in labels_to_ix.items(): 
         if value in ix_to_label: 
@@ -190,6 +193,9 @@ def get_context_vectors(vocab, train_sentences, valid_sentences, test_sentences)
     return arrays_and_labels, ix_to_word, ix_to_label
 
 def build_weights_matrix(vocab, embedding_file, embedding_dim):
+    """
+    used to apply pretrained embeddigns to vocabulary
+    """
     print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
     words = []
     embeddings_index = {}
@@ -208,7 +214,7 @@ def build_weights_matrix(vocab, embedding_file, embedding_dim):
     words_not_found = 0
     for i, word in enumerate(vocab):
         try:
-            weights_matrix[i] = embeddings_index[word]
+            weights_matrix[i] = embeddings_index[word] #assign the pretrained embedding
             words_found += 1
         
         except KeyError:
@@ -222,10 +228,15 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
             weights_matrix_torch, hidden_dim, bidirectional=False,pretrained_embeddings_status=True, 
             RNNTYPE="RNN"):
     '''
-    This function uses pretrained embeddings loaded from a file to build an RNN
+    This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
+    bidirectional will make the network bidirections, pretrained_embeddings_status=False will have the model learn its own embeddings
     '''
 
     def format_tensors(vectorized_data, dataset_type,num_mini_batches):
+        '''
+        helper function to format numpy vectors to the correct type, also determines the batch size for train, valid, and test sets
+        based on minibatch size
+        '''
         X = torch.from_numpy(vectorized_data[dataset_type+'_context_array'])
         X = X.long()
         batch_size = math.ceil(X.size(0)/num_mini_batches) # 200 mini-batches per epoch
@@ -236,12 +247,15 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
         return loader
 
     # building data loaders
-    NUM_MINI_BATCHES = 200
+    NUM_MINI_BATCHES = 200 #not 2000 for time purposes
     trainloader = format_tensors(vectorized_data,'train',NUM_MINI_BATCHES)
     validloader = format_tensors(vectorized_data,'valid',NUM_MINI_BATCHES)
     testloader = format_tensors(vectorized_data,'test',NUM_MINI_BATCHES)
     
     def create_emb_layer(weights_matrix, non_trainable=False):
+        '''
+        creates torch embeddings layer from matrix
+        '''
         num_embeddings, embedding_dim = weights_matrix.size()
         emb_layer = nn.Embedding(num_embeddings, embedding_dim)
         emb_layer.load_state_dict({'weight':weights_matrix})
@@ -278,13 +292,14 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
             yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
             return yhats #CrossEntropy in pytorch takes care of softmax here
 
-    # This custom loss function is defined to reduce the effect of class imbalance.
-    # Since there are so many samples labeled as "O", this allows the RNN to not 
-    # be weighted too heavily in that area.
+
     losses = []
     def class_proportional_weights(train_labels):
         '''
         helper function to scale weights of classes in loss function based on their sampled proportions
+        # This custom loss function is defined to reduce the effect of class imbalance.
+        # Since there are so many samples labeled as "O", this allows the RNN to not 
+        # be weighted too heavily in that area.
         '''
         weights = []
         flat_train_labels = [item for sublist in train_labels for item in sublist]
@@ -425,10 +440,10 @@ def run_RNN(vectorized_data, vocab, wordindex, labelindex,
         f.write(formattedcontexts[i] + ' ' + formattedlabels[i] + ' ' + formattedpredictions[i] + '\n')
     f.close()
     print('--- {}--bidir={}--hidden_size={}--pretrain={}--results ---'.format(RNNTYPE,bidirectional,hidden_dim,pretrained_embeddings_status))
-    evaluate_conll_file(open(fname,'r'))
+    evaluate_conll_file(open(fname,'r')) #evaluate using conll script
 
 if __name__ == "__main__":
-    # Converting embeddings to text file if not saved already 
+    # Converting embeddings to text file if not saved already
     if not os.path.exists('GoogleNews-vectors-negative300.txt'):
         from gensim.models.keyedvectors import KeyedVectors
         print('Word Embeddings not saved as Text file. Converting now... Please wait.')    
