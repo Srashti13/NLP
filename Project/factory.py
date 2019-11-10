@@ -16,8 +16,9 @@ import numpy as np
 import itertools
 import csv
 from nltk.util import ngrams
-from nltk import word_tokenize
-from nltk import sent_tokenize
+from nltk import word_tokenize, sent_tokenize
+from nltk.stem.lancaster import LancasterStemmer
+from nltk.stem import PorterStemmer, SnowballStemmer
 from collections import defaultdict
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
@@ -34,6 +35,8 @@ import pandas as pd
 import gc #garbage collector for gpu memory 
 from tqdm import tqdm
 
+
+
 # from GPUtil import showUtilization as gpu_usage
 
 
@@ -47,21 +50,31 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 1306112 #1306112 is full dataset
+    train_size = 100000 #1306112 is full dataset
+    BATCH_SIZE = 500
     erroranalysis = True
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
     train_context_array, train_context_label_array, test_context_array, totalpadlength, wordindex, vocab = get_context_vector(vocab, train_questions, train_labels, test_questions)
     unique, cnts = np.unique(train_context_label_array, return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
-    run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit, erroranalysis, wordindex)
-    # pretrained_embedding_run_NN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), vocab, train_size,totalpadlength,readytosubmit,erroranalysis, wordindex)
-    RNNTYPE = "RNN"
-    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
-    RNNTYPE = "GRU"
-    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
-    RNNTYPE = "LSTM"
-    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
+    weights_matrix_torch = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings/GoogleNews-vectors-negative300.txt", embedding_dim=300, wordindex=wordindex)
+    
+    
+    pretrained_embedding_run_RNN(train_context_array, train_context_label_array,test_context_array, 
+                                test_ids, vocab,totalpadlength, wordindex,
+                                weights_matrix_torch, hidden_dim=256, readytosubmit=readytosubmit, 
+                                erroranalysis=erroranalysis, RNNTYPE="LSTM", bidirectional=True,
+                                batch_size=BATCH_SIZE)
+    
+    
+#    run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit, erroranalysis, wordindex)
+#    RNNTYPE = "RNN"
+#    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
+#    RNNTYPE = "GRU"
+#    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
+#    RNNTYPE = "LSTM"
+#    run_RNN(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit,RNNTYPE,erroranalysis, wordindex)
     return
 
 def get_docs(train_size, readytosubmit):
@@ -140,7 +153,6 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions):
     This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
     --creates 2 fake grams for every real gram 
     '''
-    import operator
     word_to_ix = {word: i+1 for i, word in enumerate(vocab)} #index vocabulary
     word_to_ix['XXPADXX'] = 0 #set up padding
     vocab.append('XXPADXX')
@@ -176,6 +188,79 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions):
 
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
     return train_context_array, train_context_label_array, test_context_array, totalpadlength, ix_to_word, vocab
+
+
+def build_weights_matrix(vocab, embedding_file, embedding_dim, wordindex):
+    """
+    used to apply pretrained embeddings to vocabulary
+    """
+    ps = PorterStemmer()
+    lc = LancasterStemmer()
+    sb = SnowballStemmer("english")
+    print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
+    words = []
+    embeddings_index = {}
+    with open (embedding_file, encoding="utf8") as f:
+        for line in f:
+            values = line.split()
+            word = values[0]
+            words.append(word)
+            embedding = np.asarray(values[1:], dtype='float32')
+            embeddings_index[word] = embedding
+
+    
+    matrix_len = len(vocab)
+    weights_matrix = np.zeros((matrix_len, embedding_dim)) 
+    words_found = 0
+    words_not_found = 0
+    # assigning pretrained embeddings
+    for i, word in tqdm(wordindex.items()):
+        word = "".join(word)
+        if embeddings_index.get(word) is not None:
+            weights_matrix[i] = embeddings_index[word] #assign the pretrained embedding
+            words_found += 1
+            continue
+        # if the word in the vocab doesn't match anything in the pretrained embedding,
+        # we are adjusting the word to see if any adjustment matches a word in the embedding
+        adjusted_word = word.lower()
+        if embeddings_index.get(adjusted_word) is not None:
+            weights_matrix[i] = embeddings_index[adjusted_word] 
+            words_found += 1
+            continue
+        adjusted_word = word.upper()
+        if embeddings_index.get(adjusted_word) is not None:
+            weights_matrix[i] = embeddings_index[adjusted_word] 
+            words_found += 1
+            continue
+        adjusted_word = word.capitalize()
+        if embeddings_index.get(adjusted_word) is not None:
+            weights_matrix[i] = embeddings_index[adjusted_word]
+            words_found += 1
+            continue
+        adjusted_word = ps.stem(word)
+        if embeddings_index.get(adjusted_word) is not None:
+            weights_matrix[i] = embeddings_index[adjusted_word] 
+            words_found += 1
+            continue
+        adjusted_word = lc.stem(word)
+        if embeddings_index.get(adjusted_word) is not None:
+            weights_matrix[i] = embeddings_index[adjusted_word] 
+            words_found += 1
+            continue
+        adjusted_word = sb.stem(word)
+        if embeddings_index.get(adjusted_word) is not None:
+            weights_matrix[i] = embeddings_index[adjusted_word] 
+            words_found += 1
+            continue
+        
+        # if the word still isn't in the embedding, even after trying all the 
+        # adjustments, then we assign it a random normal set of numbers
+        weights_matrix[i] = np.random.normal(scale=0.6, size=(embedding_dim,)) #randomize out of vocabulary words
+        words_not_found += 1
+            
+    print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
+    return torch.from_numpy(weights_matrix)
+
 
 def run_neural_network(context_array, context_label_array,test_context_array, test_ids, 
 vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex):
@@ -372,14 +457,20 @@ vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex)
         print(output.head())
         output.to_csv('submission.csv', index=False)
     return
-
-def pretrained_embedding_run_NN(context_array, context_label_array,test_context_array, 
-test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranalysis, wordindex):
+    
+def pretrained_embedding_run_RNN(context_array, context_label_array,test_context_array, 
+                                test_ids, vocab,totalpadlength, wordindex,
+                                weights_matrix_torch, hidden_dim, readytosubmit=False, 
+                                erroranalysis=False, RNNTYPE="RNN", bidirectional=False,
+                                batch_size=500):
     '''
-    This function is the same as run_neural_network except it uses pretrained embeddings loaded from a file
+    This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
+    bidirectional will make the network bidirectional
     '''
-    BATCH_SIZE = 500 # 1000 maxes memory for 8GB GPU
 
+    BATCH_SIZE = batch_size # 1000 maxes memory for 8GB GPU
+    CONTEXT_SIZE = totalpadlength # total length of padded questions size
+    
     #randomly split into test and validation sets
     X_train, y_train = context_array, context_label_array
 
@@ -414,40 +505,11 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
     validloader = data_utils.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False)
     testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
     
-    print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
-    EMBEDDING_DIM = 200 # embeddings dimensions
-    CONTEXT_SIZE = totalpadlength #sentence size
-    
-    # getting embeddings from the file
-    EMBEDDING_FILE = "kaggle/input/quora-insincere-questions-classification/embeddings/glove.6B.200d.txt"
-    embeddings_index = {}
-    words = []
-    with open (EMBEDDING_FILE, encoding="utf8") as f:
-        for line in f:
-            values = line.split()
-            word = values[0]
-            words.append(word)
-            embedding = np.asarray(values[1:], dtype='float32')
-            embeddings_index[word] = embedding
-
-    matrix_len = vocab_size
-    weights_matrix = np.zeros((matrix_len, EMBEDDING_DIM)) # 200 is depth of embedding matrix
-    words_found = 0
-    words_not_found = 0
-    for i, word in enumerate(vocab):
-        try:
-            weights_matrix[i] = embeddings_index[word]
-            words_found += 1
         
-        except KeyError:
-            weights_matrix[i] = np.random.normal(scale=0.6, size=(EMBEDDING_DIM,)) #randomize out of vocabulary words
-            words_not_found += 1
-    
-    print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/vocab_size)*100,words_found,vocab_size))
-    
-    weights_matrix_torch = torch.from_numpy(weights_matrix)
-    
     def create_emb_layer(weights_matrix, non_trainable=False):
+        '''
+        creates torch embeddings layer from matrix
+        '''
         num_embeddings, embedding_dim = weights_matrix.size()
         emb_layer = nn.Embedding(num_embeddings, embedding_dim)
         emb_layer.load_state_dict({'weight':weights_matrix})
@@ -455,38 +517,76 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
             emb_layer.weight.requires_grad = False
         return emb_layer, num_embeddings, embedding_dim
     
-    class FeedForward(nn.Module):
-        def __init__(self, weights_matrix, context_size):
-            super(FeedForward, self).__init__()
-            print('----Using Feed Forward (Pre-trained Embeddings)----')
-            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, True)
-            self.linear1 = nn.Linear(embedding_dim*context_size, 1)
-            self.out_act = nn.Sigmoid()
-            
-        def forward(self, inputs, context_size, embedding_dim):
-            embeds = self.embedding(inputs).view((-1, context_size*embedding_dim))
-            out1 = self.linear1(embeds)
-            yhat = self.out_act(out1)
-            return yhat 
 
+    class RNNmodel(nn.Module):
+        '''
+        RNN model that can be changed to LSTM or GRU and made bidirectional if needed 
+        '''
+        def __init__(self, context_size, hidden_size, 
+                     weights_matrix, bidirectional=False, rnntype="RNN", pre_trained=True):
+            super(RNNmodel, self).__init__()
+            if bidirectional:
+                num_directions = 2
+            else:
+                num_directions = 1
+            self.embedding, num_embeddings, embedding_dim = create_emb_layer(
+                    weights_matrix)
+            if RNNTYPE=="LSTM":
+                print("----Using LSTM-----")
+                self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional)
+            elif RNNTYPE=="GRU":
+                print("----Using GRU-----")
+                self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional)
+            else:
+                print("----Using RNN-----")
+                self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional)
+            self.fc = nn.Linear(hidden_size*context_size*num_directions,1)
+            
+        def forward(self, inputs):
+            embeds = self.embedding(inputs)
+            out, _ = self.rnn(embeds)
+            out1 = torch.cat([out[:,:,i] for i in range(out.shape[2])], dim=1)
+            yhats = self.fc(out1)
+            return yhats
+            
+        
+        
     #initalize model parameters and variables
     losses = []
-    loss_function = nn.BCELoss() #binary cross entropy produced best results
-    # Experimenting with MSE Loss
-    #loss_function = nn.MSELoss()
-    model = FeedForward(weights_matrix_torch, CONTEXT_SIZE)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
-    # The random weight method isn't as effective as the default pytorch method
-    #model.apply(random_weights)
+    def class_proportional_weights(train_labels):
+        '''
+        helper function to scale weights of classes in loss function based on their sampled proportions
+        # This custom loss function is defined to reduce the effect of class imbalance.
+        # Since there are so many samples labeled as "O", this allows the RNN to not 
+        # be weighted too heavily in that area.
+        '''
+        weights = []
+        flat_train_labels = [item for sublist in train_labels for item in sublist]
+        for lab in range(1,2):
+            weights.append(1-(flat_train_labels.count(lab)/(len(flat_train_labels)))) #proportional to number without tags
+        return weights
+    
+    weights = class_proportional_weights(context_label_array)
+    class_weights = torch.FloatTensor(weights).cuda()
+    criterion = nn.BCEWithLogitsLoss(weight=class_weights)
+    
+
+    #initalize model parameters and variables
+    model = RNNmodel(CONTEXT_SIZE, hidden_dim, weights_matrix_torch, bidirectional=True, rnntype=RNNTYPE)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.01) #learning rate set to 0.0001 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.Adam(model.parameters(), lr=0.005) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
+    sig_fn = nn.Sigmoid()
     f1_list = []
     best_f1 = 0 
     print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(2): 
+    for epoch in range(20): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -495,10 +595,10 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
             # Run the forward pass and get predicted output
             context = context.to(device)
             label = label.to(device)
-            yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM) #required dimensions for batching
+            yhat = model.forward(context) #required dimensions for batching
             yhat = yhat.view(-1,1)
             # Compute Binary Cross-Entropy
-            loss = loss_function(yhat, label)
+            loss = criterion(yhat, label)
             #clear memory 
             del context, label #memory 
             # Do the backward pass and update the gradient
@@ -520,8 +620,8 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
             for a, (context, label) in enumerate(validloader):
                 context = context.to(device)
                 label = label.to(device)
-                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
-                predictions = (yhat > 0.5)
+                yhat = model.forward(context)
+                predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
                 labelsfull.extend(label.int().tolist())
                 del context, label, predictions #memory
@@ -557,9 +657,9 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
                     labelsfull.extend(label.int().tolist())
                 context = context.to(device)
                 label = label.to(device)
-                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = model.forward(context)
                 yhat = yhat.view(-1,1)
-                predictions = (yhat > 0.5)
+                predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
         #print 20 errors 
         printed = 0
@@ -579,9 +679,9 @@ test_ids, vocab_size, vocab, train_size,totalpadlength, readytosubmit,erroranaly
             for a, (context, label) in enumerate(testloader):
                 context = context.to(device)
                 label = label.to(device)
-                yhat = model.forward(context, CONTEXT_SIZE, EMBEDDING_DIM)
+                yhat = model.forward(context)
                 yhat = yhat.view(-1,1)
-                predictions = (yhat > 0.5)
+                predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
 
         #outputs results to csv
@@ -674,33 +774,6 @@ train_size, totalpadlength, readytosubmit, RNNTYPE,erroranalysis, wordindex):
             # print(yhat)
             return yhat
             
-        # def __init__(self, vocab_size, embedding_dim, context_size, hidden_size):
-        #     super(RNNmodel, self).__init__()
-        #     self.embeddings = nn.Embedding(vocab_size, embedding_dim) 
-        #     self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True)
-        #     self.linear = nn.Linear(hidden_size*hidden_size, 1)
-        #     self.out_act = nn.Sigmoid()
-    
-        # def forward(self, inputs, context_size, embedding_dim):
-        #     embeds = self.embeddings(inputs) # [batch, seq, embed dim]
-
-        #     #packing
-        #     input_packed = torch.nn.utils.rnn.pack_padded_sequence(embeds, 61, batch_first=True)
-
-        #     # print(embeds.shape)
-        #     # print(embeds[0,:3,:3])
-        #     raw_output, _ = self.rnn(input_packed) # [batch, seq_len, num_directions * hidden_size]
-            
-        #     output_padded, _ = torch.nn.utils.rnn.pad_packed_sequence(raw_output,total_length=context_size,batch_first=True)
-        #     output = output_padded.contiguous()
-        #     output_reshaped = output.view(output.shape[0], -1)
-        #     # print(out1.shape)
-        #     # print(out1[:,-1,:].shape)
-        #     out2 = self.linear(output_reshaped) # -> batch size, embed dim
-        #     # print(out2.shape)
-        #     yhat = self.out_act(out2)
-        #     print(yhat)
-        #     return yhat
 
     #initalize model parameters and variables
     losses = []
