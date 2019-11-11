@@ -47,16 +47,20 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 100000 #1306112 is full dataset
+    train_size = 5000 #1306112 is full dataset
     BATCH_SIZE = 500
     erroranalysis = False
-    pretrained_embeddings_status = False
+    pretrained_embeddings_status = True
+
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
+    #get data into vectorized format and extract vocab 
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
     vectorized_data, wordindex, vocab, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit)
+    
     #shows proportions of training set
     unique, cnts = np.unique(vectorized_data['train_context_label_array'], return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
+
     #setting up embeddings if pretrained embeddings used 
     if pretrained_embeddings_status:
         glove_embedding = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings/glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
@@ -65,6 +69,7 @@ def main():
     else:
         combined_embedding = None
 
+    #run models
     run_FF(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
             hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
             learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
@@ -72,7 +77,7 @@ def main():
     run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
-    
+
     return
 
 def get_docs(train_size, readytosubmit):
