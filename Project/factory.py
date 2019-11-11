@@ -47,10 +47,10 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 50000 #1306112 is full dataset
+    train_size = 100000 #1306112 is full dataset
     BATCH_SIZE = 500
     erroranalysis = False
-    pretrained_embeddings_status = False
+    pretrained_embeddings_status = True
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     #get data into vectorized format and extract vocab 
@@ -84,7 +84,7 @@ def main():
 
     run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-        learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
+        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     return
 

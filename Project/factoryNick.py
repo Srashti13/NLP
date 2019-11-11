@@ -59,14 +59,14 @@ def main():
     unique, cnts = np.unique(train_context_label_array, return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
 #    weights_matrix_torch = build_weights_matrix(vocab, r"D:\GoogleNews-vectors-negative300.txt", wordindex=wordindex)
-    glove_embedding = build_weights_matrix(vocab, r"D:\AIT726Project\quora-insincere-questions-classification\embeddings\glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
-    para_embedding = build_weights_matrix(vocab, r"D:\AIT726Project\quora-insincere-questions-classification\embeddings\paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
+    glove_embedding = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings\glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
+    para_embedding = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings\paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
     combined_embedding = para_embedding*0.3+glove_embedding*0.7
 #    pretrained_embedding_run_RNN(train_context_array, train_context_label_array,test_context_array, 
-                                test_ids, vocab,totalpadlength, wordindex,
-                                combined_embedding, hidden_dim=112, readytosubmit=readytosubmit, 
-                                erroranalysis=erroranalysis, RNNTYPE="LSTM", bidirectional=True,
-                                batch_size=BATCH_SIZE)
+                                # test_ids, vocab,totalpadlength, wordindex,
+                                # combined_embedding, hidden_dim=112, readytosubmit=readytosubmit, 
+                                # erroranalysis=erroranalysis, RNNTYPE="LSTM", bidirectional=True,
+                                # batch_size=BATCH_SIZE)
     
     attention_model_run(train_context_array, train_context_label_array,test_context_array, 
                                 test_ids, vocab,totalpadlength, wordindex,
@@ -124,9 +124,9 @@ def get_docs(train_size, readytosubmit):
     docs = []
     #laod data and tokenize
     if readytosubmit:
-        train = pd.read_csv(r"D:\AIT726Project\quora-insincere-questions-classification\train.csv")
+        train = pd.read_csv(r"kaggle/input\quora-insincere-questions-classification\train.csv")
     else:
-        train = pd.read_csv(r"D:\AIT726Project\quora-insincere-questions-classification\train.csv",nrows=train_size)
+        train = pd.read_csv(r"kaggle/input\quora-insincere-questions-classification\train.csv",nrows=train_size)
     train_questions = train['question_text']
     train_labels = train['target']
     train_ids = train['qid']
@@ -135,9 +135,9 @@ def get_docs(train_size, readytosubmit):
     train_questions = train_questions.progress_apply(tokenize)
     
     if readytosubmit:
-        test = pd.read_csv(r"D:\AIT726Project\quora-insincere-questions-classification\test.csv")
+        test = pd.read_csv(r"kaggle/input\quora-insincere-questions-classification\test.csv")
     else:
-        test = pd.read_csv(r"D:\AIT726Project\quora-insincere-questions-classification\test.csv",nrows=10) #doesnt matter
+        test = pd.read_csv(r"kaggle/input\quora-insincere-questions-classification\test.csv",nrows=10) #doesnt matter
     test_questions = test['question_text']
     test_ids = test['qid']
     tqdm.pandas()
