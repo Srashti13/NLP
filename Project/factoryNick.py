@@ -58,15 +58,21 @@ def main():
     train_context_array, train_context_label_array, test_context_array, totalpadlength, wordindex, vocab = get_context_vector(vocab, train_questions, train_labels, test_questions)
     unique, cnts = np.unique(train_context_label_array, return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
-    weights_matrix_torch = build_weights_matrix(vocab, r"D:\GoogleNews-vectors-negative300.txt", embedding_dim=300, wordindex=wordindex)
-    
-    
-    pretrained_embedding_run_RNN(train_context_array, train_context_label_array,test_context_array, 
+#    weights_matrix_torch = build_weights_matrix(vocab, r"D:\GoogleNews-vectors-negative300.txt", wordindex=wordindex)
+    glove_embedding = build_weights_matrix(vocab, r"D:\AIT726Project\quora-insincere-questions-classification\embeddings\glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
+    para_embedding = build_weights_matrix(vocab, r"D:\AIT726Project\quora-insincere-questions-classification\embeddings\paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
+    combined_embedding = para_embedding*0.3+glove_embedding*0.7
+#    pretrained_embedding_run_RNN(train_context_array, train_context_label_array,test_context_array, 
                                 test_ids, vocab,totalpadlength, wordindex,
-                                weights_matrix_torch, hidden_dim=112, readytosubmit=readytosubmit, 
+                                combined_embedding, hidden_dim=112, readytosubmit=readytosubmit, 
                                 erroranalysis=erroranalysis, RNNTYPE="LSTM", bidirectional=True,
                                 batch_size=BATCH_SIZE)
     
+    attention_model_run(train_context_array, train_context_label_array,test_context_array, 
+                                test_ids, vocab,totalpadlength, wordindex,
+                                combined_embedding, hidden_dim=112, readytosubmit=readytosubmit, 
+                                erroranalysis=erroranalysis, RNNTYPE="LSTM", bidirectional=True,
+                                batch_size=BATCH_SIZE)
     
 #    run_neural_network(train_context_array, train_context_label_array,test_context_array,test_ids, len(vocab), train_size, totalpadlength,readytosubmit, erroranalysis, wordindex)
 #    RNNTYPE = "RNN"
@@ -190,7 +196,7 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions):
     return train_context_array, train_context_label_array, test_context_array, totalpadlength, ix_to_word, vocab
 
 
-def build_weights_matrix(vocab, embedding_file, embedding_dim, wordindex):
+def build_weights_matrix(vocab, embedding_file, wordindex):
     """
     used to apply pretrained embeddings to vocabulary
     """
@@ -198,17 +204,16 @@ def build_weights_matrix(vocab, embedding_file, embedding_dim, wordindex):
     lc = LancasterStemmer()
     sb = SnowballStemmer("english")
     print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
-    words = []
+    
     embeddings_index = {}
-    with open (embedding_file, encoding="utf8") as f:
+    with open (embedding_file, encoding="utf8", errors='ignore') as f:
         for line in f:
-            values = line.split()
+            values = line.split(" ")
             word = values[0]
-            words.append(word)
             embedding = np.asarray(values[1:], dtype='float32')
             embeddings_index[word] = embedding
-
     
+    embedding_dim = embeddings_index[word].shape[0]
     matrix_len = len(vocab)
     weights_matrix = np.zeros((matrix_len, embedding_dim)) 
     words_found = 0
@@ -260,6 +265,7 @@ def build_weights_matrix(vocab, embedding_file, embedding_dim, wordindex):
             
     print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
     return torch.from_numpy(weights_matrix)
+
 
 
 def run_neural_network(context_array, context_label_array,test_context_array, test_ids, 
@@ -457,7 +463,285 @@ vocab_size, train_size, totalpadlength, readytosubmit, erroranalysis, wordindex)
         print(output.head())
         output.to_csv('submission.csv', index=False)
     return
+
+def attention_model_run(context_array, context_label_array,test_context_array, 
+                                test_ids, vocab,totalpadlength, wordindex,
+                                weights_matrix_torch, hidden_dim, readytosubmit=False, 
+                                erroranalysis=False, RNNTYPE="RNN", bidirectional=False,
+                                batch_size=500):
+    '''
+    This function uses pretrained embeddings loaded from a file to build an Attention Model 
+    with a bidirectional LSTM and GRU
+    '''
+
+    BATCH_SIZE = batch_size # 1000 maxes memory for 8GB GPU
+    CONTEXT_SIZE = totalpadlength # total length of padded questions size
     
+    #randomly split into test and validation sets
+    X_train, y_train = context_array, context_label_array
+
+    X_test, y_test = test_context_array, np.zeros(len(test_context_array))
+
+    if readytosubmit:
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.02, 
+                                                            random_state=1234, shuffle=True, stratify=y_train)
+    else:
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, test_size=0.2, 
+                                                            random_state=1234, shuffle=True, stratify=y_train)
+    
+    #set datatypes 
+    X_train = torch.from_numpy(X_train)
+    X_train = X_train.long()
+    y_train = torch.from_numpy(y_train)
+    y_train = y_train.float()
+    X_valid = torch.from_numpy(X_valid)
+    X_valid = X_valid.long()
+    y_valid = torch.from_numpy(y_valid)
+    y_valid = y_valid.float()
+    X_test = torch.from_numpy(X_test)
+    X_test = X_test.long()
+    y_test = torch.from_numpy(y_test)
+    y_test = y_test.float()
+    
+    #create datasets for loading into models
+    train = data_utils.TensorDataset(X_train, y_train)
+    valid = data_utils.TensorDataset(X_valid, y_valid)
+    test = data_utils.TensorDataset(X_test, y_test)
+    trainloader = data_utils.DataLoader(train, batch_size=BATCH_SIZE, shuffle=False)
+    validloader = data_utils.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False)
+    testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
+    
+    # This works better when the weights are set to non_trainable on the Quora data    
+    def create_emb_layer(weights_matrix, non_trainable=True):
+        '''
+        creates torch embeddings layer from matrix
+        '''
+        num_embeddings, embedding_dim = weights_matrix.size()
+        emb_layer = nn.Embedding(num_embeddings, embedding_dim)
+        emb_layer.load_state_dict({'weight':weights_matrix})
+        if non_trainable:
+            emb_layer.weight.requires_grad = False
+        return emb_layer, num_embeddings, embedding_dim
+    
+    
+    
+    class Attention(nn.Module):
+        def __init__(self, feature_dim, step_dim, bias=True, **kwargs):
+            super(Attention, self).__init__(**kwargs)
+            
+            self.supports_masking = True
+    
+            self.bias = bias
+            self.feature_dim = feature_dim
+            self.step_dim = step_dim
+            self.features_dim = 0
+            
+            weight = torch.zeros(feature_dim, 1)
+            nn.init.kaiming_uniform_(weight)
+            self.weight = nn.Parameter(weight)
+            
+            if bias:
+                self.b = nn.Parameter(torch.zeros(step_dim))
+            
+        def forward(self, x, mask=None):
+            feature_dim = self.feature_dim 
+            step_dim = self.step_dim
+    
+            eij = torch.mm(
+                x.contiguous().view(-1, feature_dim), 
+                self.weight
+            ).view(-1, step_dim)
+            
+            if self.bias:
+                eij = eij + self.b
+                
+            eij = torch.tanh(eij)
+            a = torch.exp(eij)
+            
+            if mask is not None:
+                a = a * mask
+    
+            a = a / (torch.sum(a, 1, keepdim=True) + 1e-10)
+    
+            weighted_input = x * torch.unsqueeze(a, -1)
+            return torch.sum(weighted_input, 1)
+      
+    class Neural_Network(nn.Module):
+        def __init__(self, context_size, hidden_size,weights_matrix):
+            super(Neural_Network, self).__init__()
+            
+            self.embedding, num_embeddings, embedding_dim = create_emb_layer(
+                    weights_matrix)
+            
+            self.embedding_dropout = nn.Dropout2d(0.1)
+            self.lstm = nn.LSTM(embedding_dim, hidden_size, bidirectional=True,
+                                batch_first=True)
+            self.gru = nn.GRU(hidden_size*2, hidden_size, bidirectional=True,
+                              batch_first=True)
+            
+            self.attention = Attention(hidden_size*2, context_size)
+            self.linear = nn.Linear(hidden_size*8, 16)
+            self.relu = nn.ReLU()
+            self.dropout = nn.Dropout(0.1)
+            self.fc = nn.Linear(16,1)
+            
+        def forward(self, inputs):            
+            embeds = self.embedding(inputs) # [batch_size x totalpadlength x embedding_dim]
+            h_lstm, _ = self.lstm(embeds) # [batch_size x totalpadlength x hidden_dim*num_directions]
+            h_gru, _ = self.gru(h_lstm) # [batch_size x totalpadlength x hidden_dim*num_directions]
+            h_lstm_attn = self.attention(h_lstm) # [batch_size x hidden_dim*num_directions]
+            h_gru_attn = self.attention(h_gru) # [batch_size x hidden_dim*num_directions]
+            
+            avg_pool = torch.mean(h_gru, 1)
+            max_pool, _ = torch.max(h_gru, 1)
+            conc = torch.cat((h_lstm_attn, h_gru_attn, avg_pool, max_pool),1) #[batch_size x hidden_size*8]
+            conc = self.relu(self.linear(conc)) # [batch_size x 16]
+            conc = self.dropout(conc) # [batch_size x hidden_dim_2]
+            yhats = self.fc(conc)
+            return yhats
+        
+        
+    #initalize model parameters and variables
+    losses = []
+    def class_proportional_weights(train_labels):
+        '''
+        helper function to scale weights of classes in loss function based on their sampled proportions
+        # This custom loss function is defined to reduce the effect of class imbalance.
+        # Since there are so many samples labeled as "O", this allows the RNN to not 
+        # be weighted too heavily in that area.
+        '''
+        weights = []
+        flat_train_labels = [item for sublist in train_labels for item in sublist]
+        for lab in range(1,2):
+            weights.append(1-(flat_train_labels.count(lab)/(len(flat_train_labels)))) #proportional to number without tags
+        return weights
+    
+    weights = class_proportional_weights(context_label_array)
+    class_weights = torch.FloatTensor(weights).cuda()
+    criterion = nn.BCEWithLogitsLoss(weight=class_weights)
+    
+
+    #initalize model parameters and variables
+    model = Neural_Network(CONTEXT_SIZE, hidden_dim, weights_matrix_torch)
+    print("----Using Attention Model-----")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
+    model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.005) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
+    torch.backends.cudnn.benchmark = True #memory
+    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
+    
+    sig_fn = nn.Sigmoid()
+    f1_list = []
+    best_f1 = 0 
+    print("Start Training (Pre-trained) --- %s seconds ---" % (round((time.time() - start_time),2)))
+    for epoch in range(20): 
+        iteration = 0
+        running_loss = 0.0 
+        for i, (context, label) in enumerate(trainloader):
+            # zero out the gradients from the old instance
+            optimizer.zero_grad()
+            # Run the forward pass and get predicted output
+            context = context.to(device)
+            label = label.to(device)
+            yhat = model.forward(context) #required dimensions for batching
+            yhat = yhat.view(-1,1)
+            # Compute Binary Cross-Entropy
+            loss = criterion(yhat, label)
+            #clear memory 
+            del context, label #memory 
+            # Do the backward pass and update the gradient
+            loss.backward()
+            optimizer.step()
+            iteration += 1
+            # Get the Python number from a 1-element Tensor by calling tensor.item()
+            running_loss += float(loss.item())
+            torch.cuda.empty_cache() #memory
+        losses.append(float(loss.item()))
+        del loss #memory 
+        gc.collect() #memory
+        torch.cuda.empty_cache() #memory
+
+    # Get the accuracy on the validation set for each epoch
+        with torch.no_grad():
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(validloader):
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+                del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
+
+        if f1_list[-1] > best_f1: #save if it improves validation accuracy 
+            best_f1 = f1_list[-1]
+            bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
+        #early stopping condition
+        if epoch+1 >= 5: #start looking to stop after this many epochs
+            if f1_list[-1] < min(f1_list[-5:-1]): #if accuracy lower than lowest of last 4 values
+                print('...Stopping Early...')
+                break
+
+    print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
+
+    #error analysis if desired
+    if erroranalysis:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            contextsfull = []
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(validloader):
+                for (k, element) in enumerate(context): #per batch
+                    contextsfull.append(" ".join(list(itertools.chain.from_iterable([wordindex[x] for x in context[k].tolist()]))))
+                    labelsfull.extend(label.int().tolist())
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context)
+                yhat = yhat.view(-1,1)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+        #print 20 errors 
+        printed = 0
+        for (i, pred) in enumerate(predictionsfull):
+            if pred != labelsfull[i]:
+                if printed < 20:
+                    print(' '.join([word for word in contextsfull[i].split() if word not in ['XXPADXX']]))
+                    print('predicted: %s' % (pred))
+                    print('labeled: %s' % (labelsfull[i]))
+                    printed +=1
+
+    if readytosubmit:
+        # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            predictionsfull = []
+            for a, (context, label) in enumerate(testloader):
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context)
+                yhat = yhat.view(-1,1)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+
+        #outputs results to csv
+        predictionsfinal = []
+        for element in predictionsfull:
+            predictionsfinal.append(element[0])
+        output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+        output.columns = ['qid', 'prediction']
+        print(output.head())
+        output.to_csv('submission.csv', index=False)
+    return
+        
 def pretrained_embedding_run_RNN(context_array, context_label_array,test_context_array, 
                                 test_ids, vocab,totalpadlength, wordindex,
                                 weights_matrix_torch, hidden_dim, readytosubmit=False, 
@@ -561,7 +845,6 @@ def pretrained_embedding_run_RNN(context_array, context_label_array,test_context
             yhats = self.fc(out1) # [batch_size, 1]
             return yhats
             
-        
         
     #initalize model parameters and variables
     losses = []
