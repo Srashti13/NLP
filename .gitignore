@@ -2,3 +2,6 @@ Stored/
 *.zip
 *.vscode
 kaggle/
+train*
+Google*
+*.pth

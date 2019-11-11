@@ -47,9 +47,9 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 10000 #1306112 is full dataset
+    train_size = 100000 #1306112 is full dataset
     BATCH_SIZE = 500
-    erroranalysis = True
+    erroranalysis = False
     pretrained_embeddings_status = False
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
@@ -330,7 +330,6 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, totalpadlength=70,we
             out = self.relu(out) #[batch , context , hidden_dim]
             out = out.contiguous().view(out.shape[0],-1) #[batch , context x hidden_dim]
             yhat = self.linear2(out) #[batch ,1]
-            print(yhat.shape)
             return yhat
             
         
@@ -349,7 +348,7 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, totalpadlength=70,we
         print(weights)
         return weights
     
-    weights = class_proportional_weights(vectorized_data['train_context_array'])
+    weights = class_proportional_weights(vectorized_data['train_context_label_array'])
     class_weights = torch.FloatTensor(weights).cuda()
     criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights)
     
@@ -557,10 +556,9 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
         weights = []
         flat_train_labels = [item for sublist in train_labels for item in sublist]
         weights.append(1-(flat_train_labels.count(1)/(len(flat_train_labels)))) #proportional to number without tags
-        print(weights)
         return weights
     
-    weights = class_proportional_weights(vectorized_data['train_context_array'])
+    weights = class_proportional_weights(vectorized_data['train_context_label_array'])
     class_weights = torch.FloatTensor(weights).cuda()
     criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights)
     
