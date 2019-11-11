@@ -34,9 +34,6 @@ import torch.nn as nn
 import pandas as pd
 import gc #garbage collector for gpu memory 
 from tqdm import tqdm
-
-
-
 # from GPUtil import showUtilization as gpu_usage
 
 
@@ -50,23 +47,31 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 100000 #1306112 is full dataset
+    train_size = 10000 #1306112 is full dataset
     BATCH_SIZE = 500
     erroranalysis = True
+    pretrained_embeddings_status = False
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
-    vectorized_data, wordindex, vocab = get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit)
+    vectorized_data, wordindex, vocab, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit)
+    #shows proportions of training set
     unique, cnts = np.unique(vectorized_data['train_context_label_array'], return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
-    weights_matrix_torch = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings/GoogleNews-vectors-negative300.txt", embedding_dim=300, wordindex=wordindex)
-    
-    run_FF(vectorized_data, test_ids, wordindex,weights_matrix_torch, 
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
-            learning_rate=0.1, pretrained_embeddings_status=True)
+    #setting up embeddings if pretrained embeddings used 
+    if pretrained_embeddings_status:
+        glove_embedding = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings/glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
+        para_embedding = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings/paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
+        combined_embedding = para_embedding*0.3+glove_embedding*0.7
+    else:
+        combined_embedding = None
 
-    run_RNN(vectorized_data, test_ids, wordindex,weights_matrix_torch, 
+    run_FF(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
+            learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
+
+    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-        learning_rate=0.1, pretrained_embeddings_status=True)
+        learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
     
     return
 
@@ -197,9 +202,9 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
             ix_to_word[value]=[key] 
 
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return arrays_and_labels, ix_to_word, vocab
+    return arrays_and_labels, ix_to_word, vocab, totalpadlength
 
-def build_weights_matrix(vocab, embedding_file, embedding_dim, wordindex):
+def build_weights_matrix(vocab, embedding_file, wordindex):
     """
     used to apply pretrained embeddings to vocabulary
     """
@@ -207,17 +212,16 @@ def build_weights_matrix(vocab, embedding_file, embedding_dim, wordindex):
     lc = LancasterStemmer()
     sb = SnowballStemmer("english")
     print("--- Building Pretrained Embedding Index  --- %s seconds ---" % (round((time.time() - start_time),2)))
-    words = []
+    
     embeddings_index = {}
-    with open (embedding_file, encoding="utf8") as f:
+    with open (embedding_file, encoding="utf8", errors='ignore') as f:
         for line in f:
-            values = line.split()
+            values = line.split(" ")
             word = values[0]
-            words.append(word)
             embedding = np.asarray(values[1:], dtype='float32')
             embeddings_index[word] = embedding
-
     
+    embedding_dim = embeddings_index[word].shape[0]
     matrix_len = len(vocab)
     weights_matrix = np.zeros((matrix_len, embedding_dim)) 
     words_found = 0
@@ -271,7 +275,7 @@ def build_weights_matrix(vocab, embedding_file, embedding_dim, wordindex):
     return torch.from_numpy(weights_matrix)
 
 
-def run_FF(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden_dim=100, readytosubmit=False, 
+def run_FF(vectorized_data, test_ids, wordindex,  vocablen, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -295,36 +299,40 @@ def run_FF(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden_
     validloader = format_tensors(vectorized_data,'valid',batch_size)
     testloader = format_tensors(vectorized_data,'test',batch_size)
 
-    def create_emb_layer(weights_matrix, non_trainable=False):
+    def create_emb_layer(weights_matrix):
         '''
         creates torch embeddings layer from matrix
         '''
         num_embeddings, embedding_dim = weights_matrix.size()
         emb_layer = nn.Embedding(num_embeddings, embedding_dim)
         emb_layer.load_state_dict({'weight':weights_matrix})
-        if non_trainable:
-            emb_layer.weight.requires_grad = False
-        return emb_layer, num_embeddings, embedding_dim
+        return emb_layer, embedding_dim
     
 
     class FeedForward(nn.Module):
         '''
         FF model
         '''
-        def __init__(self, hidden_dim, weights_matrix_torch, pre_trained=True):
+        def __init__(self, hidden_dim, weights_matrix_torch, context_size, vocablen, pre_trained=True):
             super(FeedForward, self).__init__()
-            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix_torch, pre_trained)
+            if pre_trained:
+                self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
+            else:
+                embedding_dim = 300
+                self.embedding = nn.Embedding(vocablen, embedding_dim)
             self.linear1 = nn.Linear(embedding_dim, hidden_dim)
-            self.linear2 = nn.Linear(hidden_dim, 1)
+            self.relu = nn.ReLU() 
+            self.linear2 = nn.Linear(hidden_dim*context_size, 1)
             
         def forward(self, inputs):
-            embeds = self.embedding(inputs) 
-            out = self.linear1(embeds)
-            out = self.linear2(out)
-            yhat = torch.mean(out, 1)
+            embeds = self.embedding(inputs) #[batch , context , embed_dim] 
+            out = self.linear1(embeds) #[batch,  context, hidden_dim]
+            out = self.relu(out) #[batch , context , hidden_dim]
+            out = out.contiguous().view(out.shape[0],-1) #[batch , context x hidden_dim]
+            yhat = self.linear2(out) #[batch ,1]
+            print(yhat.shape)
             return yhat
             
-        
         
     #initalize model parameters and variables
     losses = []
@@ -337,17 +345,17 @@ def run_FF(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden_
         '''
         weights = []
         flat_train_labels = [item for sublist in train_labels for item in sublist]
-        for lab in range(1,2):
-            weights.append(1-(flat_train_labels.count(lab)/(len(flat_train_labels)))) #proportional to number without tags
+        weights.append(1-(flat_train_labels.count(1)/(len(flat_train_labels)))) #proportional to number without tags
+        print(weights)
         return weights
     
     weights = class_proportional_weights(vectorized_data['train_context_array'])
     class_weights = torch.FloatTensor(weights).cuda()
-    criterion = nn.BCEWithLogitsLoss(weight=class_weights)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights)
     
 
     #initalize model parameters and variables
-    model = FeedForward(hidden_dim, weights_matrix_torch, pretrained_embeddings_status)
+    model = FeedForward(hidden_dim, weights_matrix_torch, totalpadlength,vocablen, pretrained_embeddings_status)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
@@ -368,7 +376,6 @@ def run_FF(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden_
             context = context.to(device)
             label = label.to(device)
             yhat = model.forward(context) #required dimensions for batching
-            # yhat = yhat.view(-1,1)
             # Compute Binary Cross-Entropy
             loss = criterion(yhat, label.float())
             #clear memory 
@@ -466,7 +473,7 @@ def run_FF(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden_
         output.to_csv('submission.csv', index=False)
     return
     
-def run_RNN(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden_dim=100, readytosubmit=False, 
+def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -490,29 +497,33 @@ def run_RNN(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden
     validloader = format_tensors(vectorized_data,'valid',batch_size)
     testloader = format_tensors(vectorized_data,'test',batch_size)
 
-    def create_emb_layer(weights_matrix, non_trainable=False):
+    def create_emb_layer(weights_matrix):
         '''
         creates torch embeddings layer from matrix
         '''
         num_embeddings, embedding_dim = weights_matrix.size()
         emb_layer = nn.Embedding(num_embeddings, embedding_dim)
         emb_layer.load_state_dict({'weight':weights_matrix})
-        if non_trainable:
-            emb_layer.weight.requires_grad = False
-        return emb_layer, num_embeddings, embedding_dim
+        return emb_layer, embedding_dim
     
 
     class RNNmodel(nn.Module):
         '''
         RNN model that can be changed to LSTM or GRU and made bidirectional if needed 
         '''
-        def __init__(self, hidden_size, weights_matrix, bidirectional_status=False, rnntype="RNN", pre_trained=True):
+        def __init__(self, hidden_size, weights_matrix, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
             super(RNNmodel, self).__init__()
             if bidirectional_status:
                 num_directions = 2
             else:
                 num_directions = 1
-            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, pre_trained)
+
+            if pre_trained:
+                self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
+            else:
+                embedding_dim = 300
+                self.embedding = nn.Embedding(vocablen, embedding_dim)
+
             if rnntype=="LSTM":
                 print("----Using LSTM-----")
                 self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True,
@@ -529,13 +540,11 @@ def run_RNN(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden
             
         def forward(self, inputs):
             embeds = self.embedding(inputs)
-            out, _ = self.rnn(embeds)
+            out, (ht, ct) = self.rnn(embeds)
             out = torch.mean(out, 1)
             yhat = self.fc(out)
             return yhat
             
-        
-        
     #initalize model parameters and variables
     losses = []
     def class_proportional_weights(train_labels):
@@ -547,17 +556,17 @@ def run_RNN(vectorized_data, test_ids, wordindex, weights_matrix_torch=0, hidden
         '''
         weights = []
         flat_train_labels = [item for sublist in train_labels for item in sublist]
-        for lab in range(1,2):
-            weights.append(1-(flat_train_labels.count(lab)/(len(flat_train_labels)))) #proportional to number without tags
+        weights.append(1-(flat_train_labels.count(1)/(len(flat_train_labels)))) #proportional to number without tags
+        print(weights)
         return weights
     
     weights = class_proportional_weights(vectorized_data['train_context_array'])
     class_weights = torch.FloatTensor(weights).cuda()
-    criterion = nn.BCEWithLogitsLoss(weight=class_weights)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights)
     
 
     #initalize model parameters and variables
-    model = RNNmodel(hidden_dim, weights_matrix_torch, bidirectional_status, rnntype, pretrained_embeddings_status)
+    model = RNNmodel(hidden_dim, weights_matrix_torch, totalpadlength, vocablen, bidirectional_status, rnntype, pretrained_embeddings_status)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
