@@ -34,6 +34,7 @@ import torch.nn as nn
 import pandas as pd
 import gc #garbage collector for gpu memory 
 from tqdm import tqdm
+from tokenizing import makemispelleddict, replace_typical_misspell, replace_contractions
 # from GPUtil import showUtilization as gpu_usage
 
 
@@ -47,7 +48,7 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 5000 #1306112 is full dataset
+    train_size = 10000 #1306112 is full dataset
     BATCH_SIZE = 500
     erroranalysis = False
     pretrained_embeddings_status = False
@@ -111,7 +112,7 @@ def get_docs(train_size, readytosubmit):
         choose.
         Tokenizer that tokenizes text. Also finds and tokenizes emoji faces.
         """
-        txt = re.sub(r'\d+', '', txt) #remove numbers
+        txt = re.sub(r'\d+', '#', txt) #reaplce numbers with a number token
         txt = txt.translate(str.maketrans('', '', string.punctuation)) #removes punctuation - not used as per requirements
         def lower_repl(match):
             return match.group(1).lower()
@@ -119,7 +120,7 @@ def get_docs(train_size, readytosubmit):
         # txt = r"This is a practice tweet :). Let's hope our-system can get it right. \U0001F923 something."
         txt = re.sub('(?:<[^>]+>)', '', txt)# remove html tags
         txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial
-        txt=txt.lower()
+        txt = replace_contractions(txt)
         tokens = word_tokenize(txt)
         return tokens
 
@@ -151,6 +152,29 @@ def get_docs(train_size, readytosubmit):
     
     total_questions = pd.concat((train_questions,test_questions), axis=0)
     vocab = list(set([item for sublist in total_questions.values for item in sublist]))
+    
+    # use this vocab to make mispelled dict
+    print("----Correcting Spelling----")
+    changed = 0
+    mispell_dict = makemispelleddict(vocab)
+    for (i,element) in enumerate(vocab):
+        if element in mispell_dict.keys():
+            vocab[i] = replace_typical_misspell(element,mispell_dict)
+            changed += 1
+    vocab = list(set(vocab))
+    print('-- spelling of {} words corrected -- '.format(changed))
+
+    for (i,sentence) in enumerate(train_questions):
+        for (j,word) in enumerate(sentence):
+            if word in mispell_dict.keys():
+                train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
+
+    for (i,sentence) in enumerate(test_questions):
+        for (j,word) in enumerate(sentence):
+            if word in mispell_dict.keys():
+                train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
+    
+
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))  
     return vocab, train_questions, train_labels, test_questions, train_ids, test_ids
 
