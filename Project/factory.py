@@ -47,10 +47,10 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 100000 #1306112 is full dataset
+    train_size = 5000 #1306112 is full dataset
     BATCH_SIZE = 500
     erroranalysis = False
-    pretrained_embeddings_status = True
+    pretrained_embeddings_status = False
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     #get data into vectorized format and extract vocab 
@@ -74,17 +74,17 @@ def main():
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
     #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+            learning_rate=0.05, pretrained_embeddings_status=pretrained_embeddings_status)
 
     # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
     #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     return
 
@@ -549,10 +549,12 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
                                     bidirectional=bidirectional_status)
             self.fc = nn.Linear(hidden_size*num_directions,1)
             
-        def forward(self, inputs):
+        def forward(self, inputs, sentencelengths):
             embeds = self.embedding(inputs)
-            out, (ht, ct) = self.rnn(embeds)
-            out = torch.mean(out, 1)
+            packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
+            out, (ht, ct) = self.rnn(packedembeds)
+            outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
+            out = torch.mean(outunpacked, 1)
             yhat = self.fc(out)
             return yhat
             
@@ -591,12 +593,15 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
+            sentencelengths = []
+            for sentence in context:
+                sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
             # zero out the gradients from the old instance
             optimizer.zero_grad()
             # Run the forward pass and get predicted output
             context = context.to(device)
             label = label.to(device)
-            yhat = model.forward(context) #required dimensions for batching
+            yhat = model.forward(context, sentencelengths) #required dimensions for batching
             # yhat = yhat.view(-1,1)
             # Compute Binary Cross-Entropy
             loss = criterion(yhat, label.float())
@@ -619,9 +624,12 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
             predictionsfull = []
             labelsfull = []
             for a, (context, label) in enumerate(validloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
                 context = context.to(device)
                 label = label.to(device)
-                yhat = model.forward(context)
+                yhat = model.forward(context, sentencelengths)
                 predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
                 labelsfull.extend(label.int().tolist())
