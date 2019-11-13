@@ -34,7 +34,7 @@ import torch.nn as nn
 import pandas as pd
 import gc #garbage collector for gpu memory 
 from tqdm import tqdm
-from tokenizing import makemispelleddict, replace_typical_misspell, replace_contractions
+# from tokenizing import makemispelleddict, replace_typical_misspell
 # from GPUtil import showUtilization as gpu_usage
 
 
@@ -48,9 +48,9 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 10000 #1306112 is full dataset
+    train_size = 1306112 #1306112 is full dataset
     BATCH_SIZE = 500
-    erroranalysis = False
+    erroranalysis = True
     pretrained_embeddings_status = False
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
@@ -79,13 +79,13 @@ def main():
             hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
             learning_rate=0.05, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+            learning_rate=0.05, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-    #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     return
 
@@ -116,6 +116,17 @@ def get_docs(train_size, readytosubmit):
         txt = txt.translate(str.maketrans('', '', string.punctuation)) #removes punctuation - not used as per requirements
         def lower_repl(match):
             return match.group(1).lower()
+
+        def replace_contractions(text):
+            def replace(match):
+                return contractions[match.group(0)]
+            def _get_contractions(contraction_dict):
+                contraction_re = re.compile('(%s)' % '|'.join(contraction_dict.keys()))
+                return contraction_dict, contraction_re
+            contraction_dict = {"ain't": "is not", "aren't": "are not","can't": "cannot", "'cause": "because", "could've": "could have", "couldn't": "could not", "didn't": "did not",  "doesn't": "does not", "don't": "do not", "hadn't": "had not", "hasn't": "has not", "haven't": "have not", "he'd": "he would","he'll": "he will", "he's": "he is", "how'd": "how did", "how'd'y": "how do you", "how'll": "how will", "how's": "how is",  "I'd": "I would", "I'd've": "I would have", "I'll": "I will", "I'll've": "I will have","I'm": "I am", "I've": "I have", "i'd": "i would", "i'd've": "i would have", "i'll": "i will",  "i'll've": "i will have","i'm": "i am", "i've": "i have", "isn't": "is not", "it'd": "it would", "it'd've": "it would have", "it'll": "it will", "it'll've": "it will have","it's": "it is", "let's": "let us", "ma'am": "madam", "mayn't": "may not", "might've": "might have","mightn't": "might not","mightn't've": "might not have", "must've": "must have", "mustn't": "must not", "mustn't've": "must not have", "needn't": "need not", "needn't've": "need not have","o'clock": "of the clock", "oughtn't": "ought not", "oughtn't've": "ought not have", "shan't": "shall not", "sha'n't": "shall not", "shan't've": "shall not have", "she'd": "she would", "she'd've": "she would have", "she'll": "she will", "she'll've": "she will have", "she's": "she is", "should've": "should have", "shouldn't": "should not", "shouldn't've": "should not have", "so've": "so have","so's": "so as", "this's": "this is","that'd": "that would", "that'd've": "that would have", "that's": "that is", "there'd": "there would", "there'd've": "there would have", "there's": "there is", "here's": "here is","they'd": "they would", "they'd've": "they would have", "they'll": "they will", "they'll've": "they will have", "they're": "they are", "they've": "they have", "to've": "to have", "wasn't": "was not", "we'd": "we would", "we'd've": "we would have", "we'll": "we will", "we'll've": "we will have", "we're": "we are", "we've": "we have", "weren't": "were not", "what'll": "what will", "what'll've": "what will have", "what're": "what are",  "what's": "what is", "what've": "what have", "when's": "when is", "when've": "when have", "where'd": "where did", "where's": "where is", "where've": "where have", "who'll": "who will", "who'll've": "who will have", "who's": "who is", "who've": "who have", "why's": "why is", "why've": "why have", "will've": "will have", "won't": "will not", "won't've": "will not have", "would've": "would have", "wouldn't": "would not", "wouldn't've": "would not have", "y'all": "you all", "y'all'd": "you all would","y'all'd've": "you all would have","y'all're": "you all are","y'all've": "you all have","you'd": "you would", "you'd've": "you would have", "you'll": "you will", "you'll've": "you will have", "you're": "you are", "you've": "you have"}
+            contractions, contractions_re = _get_contractions(contraction_dict)
+            return contractions_re.sub(replace, text)
+
 
         # txt = r"This is a practice tweet :). Let's hope our-system can get it right. \U0001F923 something."
         txt = re.sub('(?:<[^>]+>)', '', txt)# remove html tags
@@ -153,26 +164,30 @@ def get_docs(train_size, readytosubmit):
     total_questions = pd.concat((train_questions,test_questions), axis=0)
     vocab = list(set([item for sublist in total_questions.values for item in sublist]))
     
-    # use this vocab to make mispelled dict
-    print("----Correcting Spelling----")
-    changed = 0
-    mispell_dict = makemispelleddict(vocab)
-    for (i,element) in enumerate(vocab):
-        if element in mispell_dict.keys():
-            vocab[i] = replace_typical_misspell(element,mispell_dict)
-            changed += 1
-    vocab = list(set(vocab))
-    print('-- spelling of {} words corrected -- '.format(changed))
+    # # use this vocab to make mispelled dict
+    # print("----Correcting Spelling----")
+    # changed = 0
+    # mispell_dict = makemispelleddict(vocab)
+    # for (i,element) in enumerate(vocab):
+    #     if element in mispell_dict.keys():
+    #         vocab[i] = replace_typical_misspell(element,mispell_dict)
+    #         changed += 1
+    # vocab = list(set(vocab))
+    # print('-- spelling of {} words corrected -- '.format(changed))
 
-    for (i,sentence) in enumerate(train_questions):
-        for (j,word) in enumerate(sentence):
-            if word in mispell_dict.keys():
-                train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
+    # for (i,sentence) in enumerate(train_questions):
+    #     for (j,word) in enumerate(sentence):
+    #         if word in mispell_dict.keys():
+    #             print(word)
+    #             print(train_questions[i])
+    #             print(train_questions[i][j])
+    #             print(replace_typical_misspell(word,mispell_dict))
+    #             train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
 
-    for (i,sentence) in enumerate(test_questions):
-        for (j,word) in enumerate(sentence):
-            if word in mispell_dict.keys():
-                train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
+    # for (i,sentence) in enumerate(test_questions):
+    #     for (j,word) in enumerate(sentence):
+    #         if word in mispell_dict.keys():
+    #             train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
     
 
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))  
