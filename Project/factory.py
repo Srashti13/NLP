@@ -38,7 +38,8 @@ from tqdm import tqdm
 # from GPUtil import showUtilization as gpu_usage
 
 
-
+localfolder = 'kaggle/input/quora-insincere-questions-classification/'
+kagglefolder = '/kaggle/input/quora-insincere-questions-classification/'
 start_time = time.time()
 
 
@@ -47,11 +48,11 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    readytosubmit=True
-    train_size = 300000 #1306112 is full dataset
+    readytosubmit=False
+    train_size = 500 #1306112 is full dataset
     BATCH_SIZE = 500
     erroranalysis = False
-    pretrained_embeddings_status = False
+    pretrained_embeddings_status = True
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     #get data into vectorized format and extract vocab 
@@ -64,8 +65,15 @@ def main():
 
     #setting up embeddings if pretrained embeddings used 
     if pretrained_embeddings_status:
-        glove_embedding = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings/glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
-        para_embedding = build_weights_matrix(vocab, r"kaggle/input/quora-insincere-questions-classification/embeddings/paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
+        if readytosubmit:
+            import zipfile #need to unzip first on kaggle
+            with zipfile.ZipFile(kagglefolder + 'embeddings.zip', 'r') as zip_ref:
+                zip_ref.extractall(kagglefolder + 'embeddings.zip')
+            glove_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
+            para_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
+        else:
+            glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
+            para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
         combined_embedding = para_embedding*0.3+glove_embedding*0.7
     else:
         combined_embedding = None
@@ -142,9 +150,9 @@ def get_docs(train_size, readytosubmit):
     docs = []
     #laod data and tokenize
     if readytosubmit:
-        train = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/train.csv')
+        train = pd.read_csv(kagglefolder + r'train.csv')
     else:
-        train = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/train.csv',nrows=train_size)
+        train = pd.read_csv(localfolder + r'train.csv',nrows=train_size)
     #remove train questions that are less than 4 characters
     train = train[train['question_text'].map(len) > 2]
     train_questions = train['question_text']
@@ -155,9 +163,9 @@ def get_docs(train_size, readytosubmit):
     train_questions = train_questions.progress_apply(tokenize)
     
     if readytosubmit:
-        test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv')
+        test = pd.read_csv(kagglefolder + r'test.csv')
     else:
-        test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv',nrows=1000) #doesnt matter
+        test = pd.read_csv(localfolder + r'test.csv',nrows=1000) #doesnt matter
     test_questions = test['question_text']
     test_ids = test['qid']
     tqdm.pandas()
