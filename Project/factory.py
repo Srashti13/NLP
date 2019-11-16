@@ -75,9 +75,9 @@ def main():
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
     #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
@@ -596,11 +596,8 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
             packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
             out, (ht, ct) = self.rnn(packedembeds)
             outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
-            # out = torch.mean(outunpacked, 1)
-            out = outunpacked[:,0,:] #last time step of hidden layer
             htbatchfirst = ht.contiguous().permute(1,0,2).contiguous()
-            out2 = htbatchfirst.view(htbatchfirst.shape[0],-1) #same as last time step of hidden layer
-            # print(out-out2)
+            out = htbatchfirst.view(htbatchfirst.shape[0],-1) #get final layers of rnn
             yhat = self.fc(out)
             return yhat
             
