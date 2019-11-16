@@ -47,10 +47,10 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    readytosubmit=False
-    train_size = 1306112 #1306112 is full dataset
+    readytosubmit=True
+    train_size = 300000 #1306112 is full dataset
     BATCH_SIZE = 500
-    erroranalysis = True
+    erroranalysis = False
     pretrained_embeddings_status = False
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
@@ -75,17 +75,17 @@ def main():
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
     #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-            learning_rate=0.05, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-            learning_rate=0.05, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #         learning_rate=0.05, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     return
 
@@ -112,11 +112,6 @@ def get_docs(train_size, readytosubmit):
         choose.
         Tokenizer that tokenizes text. Also finds and tokenizes emoji faces.
         """
-        txt = re.sub(r'\d+', '#', txt) #reaplce numbers with a number token
-        txt = txt.translate(str.maketrans('', '', string.punctuation)) #removes punctuation - not used as per requirements
-        def lower_repl(match):
-            return match.group(1).lower()
-
         def replace_contractions(text):
             def replace(match):
                 return contractions[match.group(0)]
@@ -126,13 +121,19 @@ def get_docs(train_size, readytosubmit):
             contraction_dict = {"ain't": "is not", "aren't": "are not","can't": "cannot", "'cause": "because", "could've": "could have", "couldn't": "could not", "didn't": "did not",  "doesn't": "does not", "don't": "do not", "hadn't": "had not", "hasn't": "has not", "haven't": "have not", "he'd": "he would","he'll": "he will", "he's": "he is", "how'd": "how did", "how'd'y": "how do you", "how'll": "how will", "how's": "how is",  "I'd": "I would", "I'd've": "I would have", "I'll": "I will", "I'll've": "I will have","I'm": "I am", "I've": "I have", "i'd": "i would", "i'd've": "i would have", "i'll": "i will",  "i'll've": "i will have","i'm": "i am", "i've": "i have", "isn't": "is not", "it'd": "it would", "it'd've": "it would have", "it'll": "it will", "it'll've": "it will have","it's": "it is", "let's": "let us", "ma'am": "madam", "mayn't": "may not", "might've": "might have","mightn't": "might not","mightn't've": "might not have", "must've": "must have", "mustn't": "must not", "mustn't've": "must not have", "needn't": "need not", "needn't've": "need not have","o'clock": "of the clock", "oughtn't": "ought not", "oughtn't've": "ought not have", "shan't": "shall not", "sha'n't": "shall not", "shan't've": "shall not have", "she'd": "she would", "she'd've": "she would have", "she'll": "she will", "she'll've": "she will have", "she's": "she is", "should've": "should have", "shouldn't": "should not", "shouldn't've": "should not have", "so've": "so have","so's": "so as", "this's": "this is","that'd": "that would", "that'd've": "that would have", "that's": "that is", "there'd": "there would", "there'd've": "there would have", "there's": "there is", "here's": "here is","they'd": "they would", "they'd've": "they would have", "they'll": "they will", "they'll've": "they will have", "they're": "they are", "they've": "they have", "to've": "to have", "wasn't": "was not", "we'd": "we would", "we'd've": "we would have", "we'll": "we will", "we'll've": "we will have", "we're": "we are", "we've": "we have", "weren't": "were not", "what'll": "what will", "what'll've": "what will have", "what're": "what are",  "what's": "what is", "what've": "what have", "when's": "when is", "when've": "when have", "where'd": "where did", "where's": "where is", "where've": "where have", "who'll": "who will", "who'll've": "who will have", "who's": "who is", "who've": "who have", "why's": "why is", "why've": "why have", "will've": "will have", "won't": "will not", "won't've": "will not have", "would've": "would have", "wouldn't": "would not", "wouldn't've": "would not have", "y'all": "you all", "y'all'd": "you all would","y'all'd've": "you all would have","y'all're": "you all are","y'all've": "you all have","you'd": "you would", "you'd've": "you would have", "you'll": "you will", "you'll've": "you will have", "you're": "you are", "you've": "you have"}
             contractions, contractions_re = _get_contractions(contraction_dict)
             return contractions_re.sub(replace, text)
-
-
-        # txt = r"This is a practice tweet :). Let's hope our-system can get it right. \U0001F923 something."
+        def lower_repl(match):
+            return match.group(1).lower()
+        text=txt
+        txt = replace_contractions(txt)
+        txt = txt.translate(str.maketrans('', '', string.punctuation)) #removes punctuation - not used as per requirements  
+        txt = re.sub(r'\d+', '#', txt) #replace numbers with a number token
         txt = re.sub('(?:<[^>]+>)', '', txt)# remove html tags
         txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial
-        txt = replace_contractions(txt)
+        # txt = r"This is a practice tweet :). Let's hope our-system can get it right. \U0001F923 something."
         tokens = word_tokenize(txt)
+        if len(tokens) <=0:
+            print(text)
+            print(tokens)
         return tokens
 
     #initalize variables
@@ -144,6 +145,8 @@ def get_docs(train_size, readytosubmit):
         train = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/train.csv')
     else:
         train = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/train.csv',nrows=train_size)
+    #remove train questions that are less than 4 characters
+    train = train[train['question_text'].map(len) > 2]
     train_questions = train['question_text']
     train_labels = train['target']
     train_ids = train['qid']
@@ -154,7 +157,7 @@ def get_docs(train_size, readytosubmit):
     if readytosubmit:
         test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv')
     else:
-        test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv',nrows=10) #doesnt matter
+        test = pd.read_csv(r'kaggle/input/quora-insincere-questions-classification/test.csv',nrows=1000) #doesnt matter
     test_questions = test['question_text']
     test_ids = test['qid']
     tqdm.pandas()
@@ -223,10 +226,10 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
     totalpadlength = max(max(map(len, train_context_values)),max(map(len, test_context_values))) #the longest question 
     train_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in train_context_values]) #needed because without padding we are lost 
     test_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in test_context_values]) #needed because without padding we are lost 
-    train_context_label_array = np.array(train_context_labels) 
+    train_context_label_array = np.array(train_context_labels)
 
     if readytosubmit:
-        testsize = 0.02
+        test_size = 0.02
     else:
         test_size = 0.2
     valid_context_array = np.zeros(5)
@@ -593,7 +596,11 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
             packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
             out, (ht, ct) = self.rnn(packedembeds)
             outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
-            out = torch.mean(outunpacked, 1)
+            # out = torch.mean(outunpacked, 1)
+            out = outunpacked[:,0,:] #last time step of hidden layer
+            htbatchfirst = ht.contiguous().permute(1,0,2).contiguous()
+            out2 = htbatchfirst.view(htbatchfirst.shape[0],-1) #same as last time step of hidden layer
+            # print(out-out2)
             yhat = self.fc(out)
             return yhat
             
@@ -705,8 +712,7 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
                     labelsfull.extend(label.int().tolist())
                 context = context.to(device)
                 label = label.to(device)
-                yhat = model.forward(context)
-                yhat = yhat.view(-1,1)
+                yhat = model.forward(context, sentencelengths)
                 predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
         #print 20 errors 
@@ -725,10 +731,12 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
         with torch.no_grad():
             predictionsfull = []
             for a, (context, label) in enumerate(testloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
                 context = context.to(device)
                 label = label.to(device)
-                yhat = model.forward(context)
-                yhat = yhat.view(-1,1)
+                yhat = model.forward(context, sentencelengths)
                 predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
 
@@ -736,9 +744,10 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
         predictionsfinal = []
         for element in predictionsfull:
             predictionsfinal.append(element[0])
-        output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+        output = pd.DataFrame(list(zip(test_ids.tolist(),predictionsfinal)))
         output.columns = ['qid', 'prediction']
         print(output.head())
+        print(len(output))
         output.to_csv('submission.csv', index=False)
     return
 
@@ -952,7 +961,7 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=7
         predictionsfinal = []
         for element in predictionsfull:
             predictionsfinal.append(element[0])
-        output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+        output = pd.DataFrame(list(zip(test_ids.tolist(),predictionsfinal)))
         output.columns = ['qid', 'prediction']
         print(output.head())
         output.to_csv('submission.csv', index=False)
@@ -1206,7 +1215,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadle
         predictionsfinal = []
         for element in predictionsfull:
             predictionsfinal.append(element[0])
-        output = pd.DataFrame(np.array([test_ids,predictionsfinal])).transpose()
+        output = pd.DataFrame(list(zip(test_ids.tolist(),predictionsfinal)))
         output.columns = ['qid', 'prediction']
         print(output.head())
         output.to_csv('submission.csv', index=False)
