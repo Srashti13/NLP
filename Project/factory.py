@@ -52,7 +52,7 @@ def main():
     train_size = 500 #1306112 is full dataset
     BATCH_SIZE = 500
     erroranalysis = False
-    pretrained_embeddings_status = True
+    pretrained_embeddings_status = False
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     #get data into vectorized format and extract vocab 
