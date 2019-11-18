@@ -66,9 +66,6 @@ def main():
     #setting up embeddings if pretrained embeddings used 
     if pretrained_embeddings_status:
         if readytosubmit:
-            import zipfile #need to unzip first on kaggle
-            with zipfile.ZipFile(kagglefolder + 'embeddings.zip', 'r') as zip_ref:
-                zip_ref.extractall(kagglefolder + 'embeddings.zip')
             glove_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
             para_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
         else:
