@@ -29,7 +29,7 @@ from sklearn.model_selection import train_test_split
 
 #%%
 localfolder = 'kaggle/input/quora-insincere-questions-classification/'
-train = pd.read_csv(localfolder + 'train.csv', nrows=10000) # , nrows=50000 remove for whole dataset
+train = pd.read_csv(localfolder + 'train.csv', nrows=100000) # , nrows=50000 remove for whole dataset
 
 #%%
 
@@ -87,11 +87,12 @@ class StatFeatureVectorizer(BaseEstimator, TransformerMixin):
     def fit(self,X,y=None):
         return self
     def transform(self,X,y=None):
-        features = pd.Dataframe()
-        
-        #do stuff here to make vectors
-        print(X)
-        return X
+        senencelength = X.apply(lambda x : len(x.split()))
+        numbofchars = X.apply(lambda x : len(x))
+        features = pd.concat([senencelength, numbofchars], axis=1)
+        #do stuff here to make feature vectors
+        # print(features)
+        return features
 
 # using a dense transformer so that the Gaussian NB can read in the data      
 class DenseTransformer(TransformerMixin):
