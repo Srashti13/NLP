@@ -2,6 +2,7 @@ Stored/
 *.zip
 *.vscode
 kaggle/
-train*
+train_*
 Google*
 *.pth
+*pycache*
