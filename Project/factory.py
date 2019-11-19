@@ -49,8 +49,8 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 500 #1306112 is full dataset
-    BATCH_SIZE = 500
+    train_size = 1306112 #1306112 is full dataset
+    BATCH_SIZE = 10000
     erroranalysis = False
     pretrained_embeddings_status = False
 
@@ -66,23 +66,24 @@ def main():
     #setting up embeddings if pretrained embeddings used 
     if pretrained_embeddings_status:
         if readytosubmit:
-            glove_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
-            para_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
+            glove_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex)
+            para_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex)
         else:
-            glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d\glove.840B.300d.txt", wordindex=wordindex)
-            para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999\paragram_300_sl999.txt", wordindex=wordindex)
+            glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex)
+            para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex)
         combined_embedding = para_embedding*0.3+glove_embedding*0.7
+        print(combined_embedding.shape)
     else:
         combined_embedding = None
 
     #run models
-    # run_FF(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
-    #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_FF(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
+            learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
@@ -234,7 +235,7 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
     train_context_label_array = np.array(train_context_labels)
 
     if readytosubmit:
-        test_size = 0.02
+        test_size = 0.1
     else:
         test_size = 0.2
     valid_context_array = np.zeros(5)
@@ -598,9 +599,9 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
             
         def forward(self, inputs, sentencelengths):
             embeds = self.embedding(inputs)
-            packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
-            out, (ht, ct) = self.rnn(packedembeds)
-            outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
+            # packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
+            out, (ht, ct) = self.rnn(embeds)
+            # outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
             htbatchfirst = ht.contiguous().permute(1,0,2).contiguous()
             out = htbatchfirst.view(htbatchfirst.shape[0],-1) #get final layers of rnn
             yhat = self.fc(out)
