@@ -50,7 +50,7 @@ def main():
     '''
     readytosubmit=False
     train_size = 1306112 #1306112 is full dataset
-    BATCH_SIZE = 10000
+    BATCH_SIZE = 1000
     erroranalysis = False
     pretrained_embeddings_status = False
 
@@ -405,7 +405,6 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, totalpadlength=70,we
         weights = []
         flat_train_labels = [item for sublist in train_labels for item in sublist]
         weights.append(1-(flat_train_labels.count(1)/(len(flat_train_labels)))) #proportional to number without tags
-        print(weights)
         return weights
     
     weights = class_proportional_weights(vectorized_data['train_context_label_array'])
@@ -599,9 +598,9 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
             
         def forward(self, inputs, sentencelengths):
             embeds = self.embedding(inputs)
-            # packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
+            packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
             out, (ht, ct) = self.rnn(embeds)
-            # outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
+            outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
             htbatchfirst = ht.contiguous().permute(1,0,2).contiguous()
             out = htbatchfirst.view(htbatchfirst.shape[0],-1) #get final layers of rnn
             yhat = self.fc(out)
