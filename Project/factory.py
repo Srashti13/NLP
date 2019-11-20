@@ -49,7 +49,7 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 5000 #1306112 is full dataset
+    train_size = 15000 #1306112 is full dataset
     BATCH_SIZE = 1000
     erroranalysis = False
     pretrained_embeddings_status = False
@@ -80,17 +80,17 @@ def main():
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
     #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
     #         learning_rate=0.05, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-    #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     return
 
@@ -234,7 +234,7 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
     train_context_label_array = np.array(train_context_labels)
 
     if readytosubmit:
-        test_size = 0.1
+        test_size = 0.2
     else:
         test_size = 0.2
     valid_context_array = np.zeros(5)
@@ -574,6 +574,7 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
                 num_directions = 2
             else:
                 num_directions = 1
+            drp = 0.3
 
             if pre_trained:
                 self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
@@ -593,6 +594,10 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
                 print("----Using RNN-----")
                 self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True,
                                     bidirectional=bidirectional_status)
+            #generalized
+            self.dropout = nn.Dropout(drp)
+            self.relu = nn.ReLU()
+            self.linear = nn.Linear(hidden_size*num_directions*2, hidden_size*num_directions)
             self.fc = nn.Linear(hidden_size*num_directions,1)
             
         def forward(self, inputs, sentencelengths):
@@ -600,9 +605,15 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
             packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
             out, (ht, ct) = self.rnn(packedembeds)
             outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
-            htbatchfirst = ht.contiguous().permute(1,0,2).contiguous()
-            out = htbatchfirst.view(htbatchfirst.shape[0],-1) #get final layers of rnn
-            yhat = self.fc(out)
+            #more generalized
+            avg_pool = torch.mean(outunpacked, 1)
+            max_pool, _ = torch.max(outunpacked, 1)
+            conc = torch.cat(( avg_pool, max_pool), 1)
+            conc = self.relu(self.linear(conc))
+            conc = self.dropout(conc)
+            # htbatchfirst = ht.contiguous().permute(1,0,2).contiguous()
+            # out = htbatchfirst.view(htbatchfirst.shape[0],-1) #get final layers of rnn
+            yhat = self.fc(conc)
             return yhat
             
     #initalize model parameters and variables
@@ -796,7 +807,7 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=7
                 num_directions = 2
             else:
                 num_directions = 1
-
+            drop = 0.3
             if pre_trained:
                 self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
             else:
@@ -819,13 +830,15 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=7
             self.conv = nn.Conv1d(context_size, 64, kernel_size=3)
             self.maxpool = nn.MaxPool1d(2)
             self.fc = nn.Linear(((hidden_size)-1)*64,1)
-            
+            self.dropout = nn.Dropout(drop)
+
         def forward(self, inputs):
             embeds = self.embedding(inputs) # [batch_size x totalpadlength x embedding_dim]
             out, _ = self.rnn(embeds) # [batch_size x totalpadlength x hidden_dim*num_directions]
             out = self.conv(out)
             out = self.maxpool(out)
             out1 = torch.cat([out[:,:,i] for i in range(out.shape[2])], dim=1) # [batch_size x totalpadlength*hidden_dim*num_directions]
+            out1 = self.dropout(out1)
             yhat = self.fc(out1) # [batch_size, 1]
             return yhat
             
@@ -1045,41 +1058,33 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadle
     class Neural_Network(nn.Module):
         def __init__(self, hidden_size, weights_matrix, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
             super(Neural_Network, self).__init__()
-            if bidirectional_status:
-                num_directions = 2
-            else:
-                num_directions = 1
-
+            print('--- Using Attentional Network ---')
+            num_directions = 2
             if pre_trained:
                 self.embedding, embedding_dim = create_emb_layer(weights_matrix)
             else:
                 embedding_dim = 300
                 self.embedding = nn.Embedding(vocablen, embedding_dim)
             
-            self.embedding_dropout = nn.Dropout2d(0.1)
+            self.embedding_dropout = nn.Dropout2d(0.3)
             self.lstm = nn.LSTM(embedding_dim, hidden_size, bidirectional=True,
                                 batch_first=True)
-            self.gru = nn.GRU(hidden_size*2, hidden_size, bidirectional=True,
+            self.gru = nn.GRU(hidden_size*num_directions, int(hidden_size/2), bidirectional=True,
                               batch_first=True)
             
-            self.attention = Attention(hidden_size*2, context_size)
-            self.linear = nn.Linear(hidden_size*8, 16)
+            self.attention = Attention(hidden_size, context_size)
+            self.linear = nn.Linear(hidden_size, int(hidden_size/2))
             self.relu = nn.ReLU()
             self.dropout = nn.Dropout(0.1)
-            self.fc = nn.Linear(16,1)
+            self.fc = nn.Linear(int(hidden_size/2),1)
             
         def forward(self, inputs):            
             embeds = self.embedding(inputs) # [batch_size x totalpadlength x embedding_dim]
             h_lstm, _ = self.lstm(embeds) # [batch_size x totalpadlength x hidden_dim*num_directions]
             h_gru, _ = self.gru(h_lstm) # [batch_size x totalpadlength x hidden_dim*num_directions]
-            h_lstm_attn = self.attention(h_lstm) # [batch_size x hidden_dim*num_directions]
-            h_gru_attn = self.attention(h_gru) # [batch_size x hidden_dim*num_directions]
-            
-            avg_pool = torch.mean(h_gru, 1)
-            max_pool, _ = torch.max(h_gru, 1)
-            conc = torch.cat((h_lstm_attn, h_gru_attn, avg_pool, max_pool),1) #[batch_size x hidden_size*8]
-            conc = self.relu(self.linear(conc)) # [batch_size x 16]
-            conc = self.dropout(conc) # [batch_size x hidden_dim_2]
+            h_lstm_attn = self.attention(h_gru) # [batch_size x hidden_dim*num_directions]
+            conc = self.relu(self.linear(h_lstm_attn)) # [batch_size x int(hidden_size/2)]
+            conc = self.dropout(conc) 
             yhat = self.fc(conc)
             return yhat
             
