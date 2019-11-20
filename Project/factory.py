@@ -34,6 +34,7 @@ import torch.nn as nn
 import pandas as pd
 import gc #garbage collector for gpu memory 
 from tqdm import tqdm
+from sklearn.decomposition import PCA
 # from tokenizing import makemispelleddict, replace_typical_misspell
 # from GPUtil import showUtilization as gpu_usage
 
@@ -49,8 +50,9 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 15000 #1306112 is full dataset
+    train_size = 3000 #1306112 is full dataset
     BATCH_SIZE = 1000
+    embedding_dim = 300
     erroranalysis = False
     pretrained_embeddings_status = False
 
@@ -65,32 +67,34 @@ def main():
 
     #setting up embeddings if pretrained embeddings used 
     if pretrained_embeddings_status:
+        pca = PCA(n_components=embedding_dim)
         if readytosubmit:
             glove_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex)
             para_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex)
         else:
             glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex)
             para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex)
-        combined_embedding = para_embedding*0.3+glove_embedding*0.7
+        combined_embedding = np.hstack((para_embedding*0.3,glove_embedding*0.7))
+        combined_embedding = pca.fit_transform(combined_embedding)
     else:
         combined_embedding = None
 
     #run models
-    # run_FF(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    # run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
-    #         learning_rate=0.1, pretrained_embeddings_status=pretrained_embeddings_status)
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
     #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
+    # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
     #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #         learning_rate=0.05, pretrained_embeddings_status=pretrained_embeddings_status)
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), totalpadlength, weights_matrix_torch=combined_embedding,
-        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+    #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
+    #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
     return
 
@@ -334,7 +338,7 @@ def build_weights_matrix(vocab, embedding_file, wordindex):
     print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
     return torch.from_numpy(weights_matrix)
 
-def run_FF(vectorized_data, test_ids, wordindex,  vocablen, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -372,12 +376,12 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, totalpadlength=70,we
         '''
         FF model
         '''
-        def __init__(self, hidden_dim, weights_matrix_torch, context_size, vocablen, pre_trained=True):
+        def __init__(self, hidden_dim, weights_matrix_torch,embedding_dim, context_size, vocablen, pre_trained=True):
             super(FeedForward, self).__init__()
             if pre_trained:
                 self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
             else:
-                embedding_dim = 300
+                embedding_dim = embedding_dim
                 self.embedding = nn.Embedding(vocablen, embedding_dim)
             self.linear1 = nn.Linear(embedding_dim, hidden_dim)
             self.relu = nn.ReLU() 
@@ -412,7 +416,7 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, totalpadlength=70,we
     
 
     #initalize model parameters and variables
-    model = FeedForward(hidden_dim, weights_matrix_torch, totalpadlength,vocablen, pretrained_embeddings_status)
+    model = FeedForward(hidden_dim, weights_matrix_torch,embedding_dimension, totalpadlength,vocablen, pretrained_embeddings_status)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
@@ -530,7 +534,7 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, totalpadlength=70,we
         output.to_csv('submission.csv', index=False)
     return
     
-def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -568,7 +572,7 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
         '''
         RNN model that can be changed to LSTM or GRU and made bidirectional if needed 
         '''
-        def __init__(self, hidden_size, weights_matrix, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
+        def __init__(self, hidden_size, weights_matrix, embedding_dim, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
             super(RNNmodel, self).__init__()
             if bidirectional_status:
                 num_directions = 2
@@ -579,7 +583,7 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
             if pre_trained:
                 self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
             else:
-                embedding_dim = 300
+                embedding_dim = embedding_dim
                 self.embedding = nn.Embedding(vocablen, embedding_dim)
 
             if rnntype=="LSTM":
@@ -636,7 +640,7 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
     
 
     #initalize model parameters and variables
-    model = RNNmodel(hidden_dim, weights_matrix_torch, totalpadlength, vocablen, bidirectional_status, rnntype, pretrained_embeddings_status)
+    model = RNNmodel(hidden_dim, weights_matrix_torch,embedding_dimension, totalpadlength, vocablen, bidirectional_status, rnntype, pretrained_embeddings_status)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
@@ -763,7 +767,7 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,we
         output.to_csv('submission.csv', index=False)
     return
 
-def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -801,7 +805,7 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=7
         '''
         RNN model that can be changed to LSTM or GRU and made bidirectional if needed 
         '''
-        def __init__(self, hidden_size, weights_matrix, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
+        def __init__(self, hidden_size, weights_matrix, embedding_dim, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
             super(RNNmodel, self).__init__()
             if bidirectional_status:
                 num_directions = 2
@@ -811,7 +815,7 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=7
             if pre_trained:
                 self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
             else:
-                embedding_dim = 300
+                embedding_dim = embedding_dim
                 self.embedding = nn.Embedding(vocablen, embedding_dim)
 
             if rnntype=="LSTM":
@@ -862,7 +866,7 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=7
     
 
     #initalize model parameters and variables
-    model = RNNmodel(hidden_dim, weights_matrix_torch, totalpadlength, vocablen, bidirectional_status, rnntype, pretrained_embeddings_status)
+    model = RNNmodel(hidden_dim, weights_matrix_torch,embedding_dimension, totalpadlength, vocablen, bidirectional_status, rnntype, pretrained_embeddings_status)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
@@ -980,7 +984,7 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=7
         print(output.head())
         output.to_csv('submission.csv', index=False)
 
-def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_dimension, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -1056,14 +1060,14 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadle
             return torch.sum(weighted_input, 1)
       
     class Neural_Network(nn.Module):
-        def __init__(self, hidden_size, weights_matrix, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
+        def __init__(self, hidden_size, weights_matrix,embedding_dim, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
             super(Neural_Network, self).__init__()
             print('--- Using Attentional Network ---')
             num_directions = 2
             if pre_trained:
                 self.embedding, embedding_dim = create_emb_layer(weights_matrix)
             else:
-                embedding_dim = 300
+                embedding_dim = embedding_dim
                 self.embedding = nn.Embedding(vocablen, embedding_dim)
             
             self.embedding_dropout = nn.Dropout2d(0.3)
@@ -1108,7 +1112,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, totalpadle
     
 
     #initalize model parameters and variables
-    model = Neural_Network(hidden_dim, weights_matrix_torch, totalpadlength, vocablen, bidirectional_status, rnntype, pretrained_embeddings_status)
+    model = Neural_Network(hidden_dim, weights_matrix_torch,embedding_dimension, totalpadlength, vocablen, bidirectional_status, rnntype, pretrained_embeddings_status)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
