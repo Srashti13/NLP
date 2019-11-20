@@ -32,87 +32,11 @@ from nltk import word_tokenize, pos_tag
 from textblob import TextBlob
 from statistics import mean
 from sklearn import preprocessing
+
+from tqdm import tqdm
 #%%
-list='''
-anal
-anus
-arse
-ass
-ass fuck
-ass hole
-assfucker
-asshole
-assshole
-bastard
-bitch
-black cock
-bloody hell
-boong
-cock
-cockfucker
-cocksuck
-cocksucker
-coon
-coonnass
-crap
-cunt
-cyberfuck
-damn
-darn
-dick
-dirty
-douche
-dummy
-erect
-erection
-erotic
-escort
-fag
-faggot
-fuck
-Fuck off
-fuck you
-fuckass
-fuckhole
-god damn
-gook
-hard core
-hardcore
-homoerotic
-hore
-lesbian
-lesbians
-mother fucker
-motherfuck
-motherfucker
-negro
-nigger
-orgasim
-orgasm
-penis
-penisfucker
-piss
-piss off
-porn
-porno
-pornography
-pussy
-retard
-sadist
-sex
-sexy
-shit
-slut
-son of a bitch
-suck
-tits
-viagra
-whore
-xxx
-'''
-print(list.split())
 localfolder = 'kaggle/input/quora-insincere-questions-classification/'
-train = pd.read_csv(localfolder + 'train.csv', nrows=100000) # , nrows=50000 remove for whole dataset
+train = pd.read_csv(localfolder + 'train.csv', nrows=5000) # , nrows=50000 remove for whole dataset
 
 #%%
 
@@ -201,14 +125,18 @@ class StatFeatureVectorizer(BaseEstimator, TransformerMixin):
                         'anal', 'anus', 'arse', 'ass', 'ass', 'fuck', 'ass', 'hole', 'assfucker', 'asshole', 'assshole', 'bastard', 'bitch', 'black', 'cock', 'bloody', 'hell', 'boong', 'cock', 'cockfucker', 'cocksuck', 'cocksucker', 'coon', 'coonnass', 'crap', 'cunt', 'cyberfuck', 'damn', 'darn', 'dick', 'dirty', 'douche', 'dummy', 'erect', 'erection', 'erotic', 'escort', 'fag', 'faggot', 'fuck','fuckass', 'fuckhole', 'goddamn', 'gook','hardcore', 'homoerotic', 'hore', 'lesbian', 'lesbians', 'mother', 'fucker', 'motherfuck', 'motherfucker', 'negro', 'nigger', 'orgasim', 'orgasm', 'penis', 'penisfucker', 'piss',  'porn', 'porno', 'pornography', 'pussy', 'retard', 'sadist', 'sex', 'sexy', 'shit', 'slut', 'bitch', 'suck', 'tits', 'viagra', 'whore', 'xxx']
         politicalwords = ['obama', 'barack', 'bush' 'clinton']
         profanitycount = X.apply(lambda x : len([w for w in x.split() if w.lower() in profanewords]))#https://www.cs.cmu.edu/~biglou/resources/bad-words.txt #https://www.freewebheaders.com/full-list-of-bad-words-banned-by-google/
-        features = pd.concat([numbwords, numbofchars, numbofnouns,numbofverbs,\
-                                numbofcapitals,numofuniquewords,vbbynoun,numofuniquevslength,numofcapsvlength,\
-                                averagesentimenttiemsusbjectivity,profanitycount], axis=1)
+        features = pd.concat([\
+                                # numbwords, numbofchars,\
+                                # numbofnouns,numbofverbs,\
+                                # numbofcapitals,numofuniquewords,vbbynoun,numofuniquevslength,numofcapsvlength,\
+                                averagesentimenttiemsusbjectivity,\
+                                    profanitycount\
+                                        ], axis=1)
 
         min_max_scaler = preprocessing.MinMaxScaler()
         x_scaled = min_max_scaler.fit_transform(features)
         #do stuff here to make feature vectors
-        print(pd.DataFrame(x_scaled).head())
+        # print(pd.DataFrame(x_scaled).head())
         return pd.DataFrame(x_scaled)
 
 # using a dense transformer so that the Gaussian NB can read in the data      
@@ -251,7 +179,7 @@ for (i, label) in enumerate(y_pred):
             print('labeled: %s' % (y_valid.iloc[i]))
             printed +=1
 results = precision_recall_fscore_support(y_valid,y_pred,average ='macro')
-print('\n\nprecision, accuracy, recall:')
+print('\n\nprecision, recall, f1:')
 print(results) # precision , recall, fscore
 
 

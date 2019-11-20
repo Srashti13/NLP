@@ -35,6 +35,11 @@ import pandas as pd
 import gc #garbage collector for gpu memory 
 from tqdm import tqdm
 from sklearn.decomposition import PCA
+#stat libs
+from nltk import word_tokenize, pos_tag
+from textblob import TextBlob
+from statistics import mean
+from sklearn import preprocessing
 # from tokenizing import makemispelleddict, replace_typical_misspell
 # from GPUtil import showUtilization as gpu_usage
 
@@ -50,16 +55,17 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 3000 #1306112 is full dataset
-    BATCH_SIZE = 1000
+    train_size = 10000 #1306112 is full dataset
+    BATCH_SIZE = 100
     embedding_dim = 300
-    erroranalysis = False
+    erroranalysis = True
     pretrained_embeddings_status = False
+    statfeaures = True
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     #get data into vectorized format and extract vocab 
-    vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
-    vectorized_data, wordindex, vocab, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit)
+    vocab, train_questions, train_labels, test_questions, train_ids, test_ids, stsvectors = get_docs(train_size, readytosubmit, statfeaures) 
+    vectorized_data, wordindex, vocab, totalpadlength, stsvectors = get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit, stsvectors)
     
     #shows proportions of training set
     unique, cnts = np.unique(vectorized_data['train_context_label_array'], return_counts=True) #get train class sizes
@@ -95,10 +101,13 @@ def main():
     # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
     #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
     #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
-
+    
+    run_Stat_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, stsvectors, totalpadlength, weights_matrix_torch=combined_embedding,
+        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
+        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
     return
 
-def get_docs(train_size, readytosubmit):
+def get_docs(train_size, readytosubmit, statfeaures):
 
     '''
     Pre-processing: Read the complete data word by word. Remove any markup tags, e.g., HTML
@@ -111,7 +120,25 @@ def get_docs(train_size, readytosubmit):
     and tokenizes each sentence. That way our model doesn't learn weird crossovers between the end of one sentence
     to the start of another. 
     '''
-
+    profanewords = ['abbo', 'abo', 'abortion', 'abuse', 'addict', 'addicts', 'adult', 'africa', 'african', 'alla', 'allah', 'alligatorbait', 'amateur', 'american', 'anal', 'analannie', 'analsex', 'angie', 'angry', 'anus', 'arab', 'arabs', 'areola', 'argie', 'aroused', 'arse', 'arsehole', 'asian', 'ass', 'assassin', 'assassinate', 'assassination', 'assault', 'assbagger', 'assblaster', 'assclown', 'asscowboy', 'asses', 'assfuck', 'assfucker', 'asshat', 'asshole', 'assholes', 'asshore', 'assjockey', 'asskiss', 'asskisser', 'assklown', 'asslick', 'asslicker', 'asslover', 'assman', 'assmonkey', 'assmunch', 'assmuncher', 'asspacker', 'asspirate', 'asspuppies', 'assranger', 'asswhore', 'asswipe', 'athletesfoot', 'attack', 'australian', 'babe', 'babies', 'backdoor',
+                'backdoorman', 'backseat', 'badfuck', 'balllicker', 'balls', 'ballsack', 'banging', 'baptist', 'barelylegal', 'barf', 'barface', 'barfface', 'bast', 'bastard', 'bazongas', 'bazooms', 'beaner', 'beast', 'beastality', 'beastial', 'beastiality', 'beatoff', 'beat-off', 'beatyourmeat', 'beaver', 'bestial', 'bestiality', 'bi', 'biatch', 'bible', 'bicurious', 'bigass', 'bigbastard', 'bigbutt', 'bigger', 'bisexual', 'bi-sexual', 'bitch', 'bitcher', 'bitches', 'bitchez', 'bitchin', 'bitching', 'bitchslap', 'bitchy', 'biteme', 'black', 'blackman', 'blackout', 'blacks', 'blind', 'blow', 'blowjob', 'boang', 'bogan', 'bohunk', 'bollick', 'bollock', 'bomb', 'bombers', 'bombing', 'bombs', 'bomd', 'bondage', 'boner', 'bong', 'boob', 'boobies', 'boobs', 'booby', 'boody', 'boom', 'boong', 'boonga', 'boonie', 'booty', 'bootycall', 'bountybar', 'bra', 'brea5t', 'breast', 'breastjob', 'breastlover', 'breastman', 'brothel', 'bugger', 'buggered', 'buggery', 'bullcrap', 'bulldike', 'bulldyke', 'bullshit', 'bumblefuck', 'bumfuck', 'bunga', 'bunghole', 'buried', 'burn', 'butchbabes', 'butchdike', 'butchdyke', 'butt', 'buttbang', 'butt-bang', 'buttface', 'buttfuck', 'butt-fuck', 'buttfucker', 'butt-fucker',
+                'buttfuckers', 'butt-fuckers', 'butthead', 'buttman', 'buttmunch', 'buttmuncher', 'buttpirate', 'buttplug', 'buttstain', 'byatch', 'cacker', 'cameljockey', 'cameltoe', 'canadian', 'cancer', 'carpetmuncher', 'carruth', 'catholic', 'catholics', 'cemetery', 'chav', 'cherrypopper', 'chickslick', "children's", 'chin', 'chinaman', 'chinamen', 'chinese', 'chink', 'chinky', 'choad', 'chode', 'christ', 'christian', 'church', 'cigarette', 'cigs', 'clamdigger', 'clamdiver', 'clit', 'clitoris', 'clogwog', 'cocaine', 'cock', 'cockblock', 'cockblocker', 'cockcowboy', 'cockfight', 'cockhead', 'cockknob', 'cocklicker', 'cocklover', 'cocknob', 'cockqueen', 'cockrider', 'cocksman', 'cocksmith', 'cocksmoker', 'cocksucer', 'cocksuck', 'cocksucked', 'cocksucker', 'cocksucking', 'cocktail', 'cocktease', 'cocky', 'cohee', 'coitus', 'color', 'colored', 'coloured', 'commie', 'communist', 'condom', 'conservative', 'conspiracy', 'coolie', 'cooly', 'coon', 'coondog', 'copulate', 'cornhole', 'corruption', 'cra5h', 'crabs', 'crack', 'crackpipe', 'crackwhore', 'crack-whore', 'crap', 'crapola', 'crapper', 'crappy', 'crash', 'creamy', 'crime', 'crimes', 'criminal', 'criminals', 'crotch', 'crotchjockey', 'crotchmonkey', 'crotchrot', 'cum', 'cumbubble', 'cumfest', 'cumjockey', 'cumm', 'cummer', 'cumming', 'cumquat', 'cumqueen', 'cumshot', 'cunilingus', 'cunillingus', 'cunn', 'cunnilingus', 'cunntt', 'cunt', 'cunteyed', 'cuntfuck', 'cuntfucker', 'cuntlick', 'cuntlicker', 'cuntlicking', 'cuntsucker', 'cybersex', 'cyberslimer', 'dago', 'dahmer', 'dammit', 'damn', 'damnation', 'damnit', 'darkie', 'darky', 'datnigga', 'dead', 'deapthroat', 'death', 'deepthroat', 'defecate', 'dego', 'demon', 'deposit', 'desire', 'destroy', 'deth', 'devil', 'devilworshipper', 'dick', 'dickbrain', 'dickforbrains', 'dickhead', 'dickless', 'dicklick', 'dicklicker', 'dickman', 'dickwad', 'dickweed', 'diddle', 'die', 'died', 'dies', 'dike', 'dildo', 'dingleberry', 'dink', 'dipshit', 'dipstick', 'dirty', 'disease', 'diseases', 'disturbed', 'dive', 'dix', 'dixiedike', 'dixiedyke', 'doggiestyle', 'doggystyle', 'dong', 'doodoo', 'doo-doo', 'doom', 'dope', 'dragqueen', 'dragqween', 'dripdick', 'drug', 'drunk', 'drunken', 'dumb', 'dumbass', 'dumbbitch', 'dumbfuck', 'dyefly', 'dyke', 'easyslut', 'eatballs', 'eatme', 'eatpussy', 'ecstacy', 'ejaculate', 'ejaculated', 'ejaculating', 'ejaculation', 'enema', 'enemy', 'erect', 'erection', 'ero', 'escort', 'ethiopian', 'ethnic', 'european', 'evl', 'excrement', 'execute', 'executed', 'execution', 'executioner', 'explosion', 'facefucker', 'faeces', 'fag', 'fagging', 'faggot', 'fagot', 'failed', 'failure', 'fairies', 'fairy', 'faith', 'fannyfucker', 'fart', 'farted', 'farting', 'farty', 'fastfuck', 'fat', 'fatah', 'fatass', 'fatfuck', 'fatfucker', 'fatso', 'fckcum', 'fear', 'feces', 'felatio', 'felch', 'felcher', 'felching', 'fellatio', 'feltch', 'feltcher', 'feltching', 'fetish', 'fight', 'filipina', 'filipino', 'fingerfood', 'fingerfuck', 'fingerfucked', 'fingerfucker', 'fingerfuckers', 'fingerfucking', 'fire', 'firing', 'fister', 'fistfuck', 'fistfucked', 'fistfucker', 'fistfucking', 'fisting', 'flange', 'flasher', 'flatulence', 'floo', 'flydie', 'flydye', 'fok', 'fondle', 'footaction', 'footfuck', 'footfucker', 'footlicker', 'footstar', 'fore', 'foreskin', 'forni',
+                'fornicate', 'foursome', 'fourtwenty', 'fraud', 'freakfuck', 'freakyfucker', 'freefuck', 'fu', 'fubar', 'fuc', 'fucck', 'fuck', 'fucka', 'fuckable', 'fuckbag', 'fuckbuddy', 'fucked', 'fuckedup', 'fucker', 'fuckers', 'fuckface', 'fuckfest', 'fuckfreak', 'fuckfriend', 'fuckhead', 'fuckher', 'fuckin',
+                'fuckina', 'fucking', 'fuckingbitch', 'fuckinnuts', 'fuckinright', 'fuckit', 'fuckknob', 'fuckme', 'fuckmehard', 'fuckmonkey', 'fuckoff', 'fuckpig', 'fucks', 'fucktard', 'fuckwhore', 'fuckyou', 'fudgepacker', 'fugly', 'fuk', 'fuks', 'funeral', 'funfuck', 'fungus', 'fuuck', 'gangbang', 'gangbanged',
+                'gangbanger', 'gangsta', 'gatorbait', 'gay', 'gaymuthafuckinwhore', 'gaysex', 'geez', 'geezer', 'geni', 'genital', 'german', 'getiton', 'gin', 'ginzo', 'gipp', 'girls', 'givehead', 'glazeddonut', 'gob', 'god', 'godammit', 'goddamit', 'goddammit', 'goddamn', 'goddamned', 'goddamnes', 'goddamnit', 'goddamnmuthafucker', 'goldenshower', 'gonorrehea', 'gonzagas', 'gook', 'gotohell', 'goy', 'goyim', 'greaseball', 'gringo', 'groe', 'gross', 'grostulation', 'gubba', 'gummer', 'gun', 'gyp', 'gypo', 'gypp', 'gyppie', 'gyppo', 'gyppy', 'hamas', 'handjob', 'hapa', 'harder', 'hardon', 'harem', 'headfuck',
+                'headlights', 'hebe', 'heeb', 'hell', 'henhouse', 'heroin', 'herpes', 'heterosexual', 'hijack', 'hijacker', 'hijacking', 'hillbillies', 'hindoo', 'hiscock', 'hitler', 'hitlerism', 'hitlerist', 'hiv', 'ho', 'hobo', 'hodgie', 'hoes', 'hole', 'holestuffer', 'homicide', 'homo', 'homobangers', 'homosexual', 'honger', 'honk', 'honkers', 'honkey', 'honky', 'hook', 'hooker', 'hookers', 'hooters', 'hore', 'hork', 'horn', 'horney', 'horniest', 'horny', 'horseshit', 'hosejob', 'hoser', 'hostage', 'hotdamn', 'hotpussy', 'hottotrot', 'hummer', 'husky', 'hussy', 'hustler', 'hymen', 'hymie', 'iblowu', 'idiot', 'ikey', 'illegal', 'incest', 'insest', 'intercourse', 'interracial', 'intheass', 'inthebuff', 'israel', 'israeli', "israel's", 'italiano', 'itch',
+                'jackass', 'jackoff', 'jackshit', 'jacktheripper', 'jade', 'jap', 'japanese', 'japcrap', 'jebus', 'jeez', 'jerkoff', 'jesus', 'jesuschrist', 'jew', 'jewish', 'jiga', 'jigaboo', 'jigg', 'jigga', 'jiggabo', 'jigger', 'jiggy', 'jihad', 'jijjiboo', 'jimfish', 'jism', 'jiz', 'jizim', 'jizjuice', 'jizm',
+                'jizz', 'jizzim', 'jizzum', 'joint', 'juggalo', 'jugs', 'junglebunny', 'kaffer', 'kaffir', 'kaffre', 'kafir', 'kanake', 'kid', 'kigger', 'kike', 'kill', 'killed', 'killer', 'killing', 'kills', 'kink', 'kinky', 'kissass', 'kkk', 'knife', 'knockers', 'kock', 'kondum', 'koon', 'kotex', 'krap', 'krappy', 'kraut', 'kum', 'kumbubble', 'kumbullbe', 'kummer', 'kumming', 'kumquat', 'kums', 'kunilingus', 'kunnilingus', 'kunt', 'ky', 'kyke', 'lactate', 'laid', 'lapdance', 'latin', 'lesbain', 'lesbayn', 'lesbian', 'lesbin', 'lesbo', 'lez', 'lezbe', 'lezbefriends', 'lezbo', 'lezz', 'lezzo', 'liberal', 'libido', 'licker', 'lickme', 'lies', 'limey', 'limpdick', 'limy', 'lingerie', 'liquor', 'livesex', 'loadedgun', 'lolita', 'looser', 'loser', 'lotion', 'lovebone', 'lovegoo', 'lovegun', 'lovejuice', 'lovemuscle', 'lovepistol', 'loverocket', 'lowlife', 'lsd', 'lubejob', 'lucifer', 'luckycammeltoe', 'lugan', 'lynch', 'macaca', 'mad', 'mafia', 'magicwand', 'mams', 'manhater', 'manpaste', 'marijuana', 'mastabate', 'mastabater', 'masterbate', 'masterblaster', 'mastrabator', 'masturbate', 'masturbating', 'mattressprincess', 'meatbeatter', 'meatrack', 'meth', 'mexican', 'mgger', 'mggor', 'mickeyfinn', 'mideast', 'milf', 'minority', 'mockey', 'mockie', 'mocky', 'mofo', 'moky', 'moles', 'molest', 'molestation', 'molester', 'molestor', 'moneyshot', 'mooncricket', 'mormon', 'moron', 'moslem', 'mosshead', 'mothafuck', 'mothafucka', 'mothafuckaz', 'mothafucked', 'mothafucker', 'mothafuckin', 'mothafucking', 'mothafuckings', 'motherfuck', 'motherfucked', 'motherfucker', 'motherfuckin', 'motherfucking', 'motherfuckings', 'motherlovebone', 'muff', 'muffdive', 'muffdiver', 'muffindiver', 'mufflikcer', 'mulatto', 'muncher', 'munt', 'murder', 'murderer', 'muslim', 'naked', 'narcotic', 'nasty', 'nastybitch', 'nastyho', 'nastyslut', 'nastywhore', 'nazi', 'necro', 'negro', 'negroes', 'negroid', "negro's", 'nig', 'niger', 'nigerian', 'nigerians', 'nigg',
+                'nigga', 'niggah', 'niggaracci', 'niggard', 'niggarded', 'niggarding', 'niggardliness', "niggardliness's", 'niggardly', 'niggards', "niggard's", 'niggaz', 'nigger', 'niggerhead', 'niggerhole', 'niggers', "nigger's", 'niggle', 'niggled', 'niggles', 'niggling', 'nigglings', 'niggor', 'niggur', 'niglet', 'nignog', 'nigr', 'nigra', 'nigre', 'nip', 'nipple', 'nipplering', 'nittit', 'nlgger', 'nlggor', 'nofuckingway', 'nook', 'nookey', 'nookie', 'noonan', 'nooner', 'nude', 'nudger', 'nuke', 'nutfucker', 'nymph', 'ontherag', 'oral', 'orga', 'orgasim', 'orgasm', 'orgies', 'orgy', 'osama', 'paki', 'palesimian', 'palestinian', 'pansies', 'pansy', 'panti', 'panties', 'payo', 'pearlnecklace', 'peck', 'pecker', 'peckerwood', 'pee', 'peehole', 'pee-pee', 'peepshow', 'peepshpw', 'pendy', 'penetration', 'peni5', 'penile', 'penis', 'penises', 'penthouse', 'period', 'perv', 'phonesex', 'phuk', 'phuked', 'phuking', 'phukked', 'phukking', 'phungky', 'phuq', 'pi55', 'picaninny', 'piccaninny', 'pickaninny', 'piker', 'pikey', 'piky', 'pimp', 'pimped', 'pimper', 'pimpjuic', 'pimpjuice', 'pimpsimp', 'pindick', 'piss', 'pissed', 'pisser', 'pisses', 'pisshead', 'pissin', 'pissing', 'pissoff', 'pistol', 'pixie', 'pixy', 'playboy', 'playgirl', 'pocha', 'pocho', 'pocketpool', 'pohm', 'polack', 'pom', 'pommie', 'pommy', 'poo', 'poon', 'poontang', 'poop', 'pooper', 'pooperscooper', 'pooping', 'poorwhitetrash', 'popimp', 'porchmonkey', 'porn', 'pornflick', 'pornking', 'porno', 'pornography', 'pornprincess',
+                'pot', 'poverty', 'premature', 'pric', 'prick', 'prickhead', 'primetime', 'propaganda', 'pros', 'prostitute', 'protestant', 'pu55i', 'pu55y', 'pube',
+                'pubic', 'pubiclice', 'pud', 'pudboy', 'pudd', 'puddboy', 'puke', 'puntang', 'purinapricness', 'puss', 'pussie', 'pussies', 'pussy', 'pussycat', 'pussyeater', 'pussyfucker', 'pussylicker', 'pussylips', 'pussylover', 'pussypounder', 'pusy', 'quashie', 'queef', 'queer', 'quickie', 'quim', 'ra8s', 'rabbi', 'racial', 'racist', 'radical', 'radicals', 'raghead', 'randy', 'rape', 'raped', 'raper', 'rapist', 'rearend', 'rearentry', 'rectum', 'redlight',
+                'redneck', 'reefer', 'reestie', 'refugee', 'reject', 'remains', 'rentafuck', 'republican', 'rere', 'retard', 'retarded', 'ribbed', 'rigger', 'rimjob', 'rimming', 'roach', 'robber', 'roundeye', 'rump', 'russki', 'russkie', 'sadis', 'sadom', 'samckdaddy', 'sandm', 'sandnigger', 'satan', 'scag', 'scallywag', 'scat', 'schlong', 'screw', 'screwyou', 'scrotum', 'scum', 'semen', 'seppo', 'servant', 'sex', 'sexed', 'sexfarm', 'sexhound', 'sexhouse', 'sexing', 'sexkitten', 'sexpot', 'sexslave', 'sextogo', 'sextoy', 'sextoys', 'sexual', 'sexually', 'sexwhore', 'sexy', 'sexymoma', 'sexy-slim', 'shag', 'shaggin', 'shagging', 'shat', 'shav', 'shawtypimp', 'sheeney', 'shhit', 'shinola', 'shit', 'shitcan', 'shitdick', 'shite', 'shiteater', 'shited', 'shitface', 'shitfaced', 'shitfit', 'shitforbrains', 'shitfuck', 'shitfucker', 'shitfull', 'shithapens', 'shithappens', 'shithead', 'shithouse', 'shiting', 'shitlist', 'shitola', 'shitoutofluck', 'shits', 'shitstain', 'shitted', 'shitter', 'shitting', 'shitty', 'shoot', 'shooting', 'shortfuck', 'showtime', 'sick', 'sissy', 'sixsixsix', 'sixtynine', 'sixtyniner', 'skank', 'skankbitch', 'skankfuck', 'skankwhore', 'skanky', 'skankybitch', 'skankywhore',
+                'skinflute', 'skum', 'skumbag', 'slant', 'slanteye', 'slapper', 'slaughter', 'slav', 'slave', 'slavedriver', 'sleezebag', 'sleezeball', 'slideitin', 'slime', 'slimeball', 'slimebucket', 'slopehead', 'slopey', 'slopy', 'slut', 'sluts', 'slutt', 'slutting', 'slutty', 'slutwear', 'slutwhore', 'smack',
+                'smackthemonkey', 'smut', 'snatch', 'snatchpatch', 'snigger', 'sniggered', 'sniggering', 'sniggers', "snigger's", 'sniper', 'snot', 'snowback', 'snownigger', 'sob', 'sodom', 'sodomise', 'sodomite', 'sodomize', 'sodomy', 'sonofabitch', 'sonofbitch', 'sooty', 'sos', 'soviet', 'spaghettibender', 'spaghettinigger', 'spank', 'spankthemonkey', 'sperm', 'spermacide', 'spermbag', 'spermhearder', 'spermherder', 'spic', 'spick', 'spig', 'spigotty', 'spik', 'spit', 'spitter', 'splittail', 'spooge', 'spreadeagle', 'spunk', 'spunky', 'squaw', 'stagg', 'stiffy', 'strapon', 'stringer', 'stripclub', 'stroke', 'stroking', 'stupid', 'stupidfuck', 'stupidfucker', 'suck', 'suckdick', 'sucker', 'suckme', 'suckmyass', 'suckmydick', 'suckmytit', 'suckoff', 'suicide', 'swallow', 'swallower', 'swalow', 'swastika', 'sweetness', 'syphilis', 'taboo', 'taff', 'tampon', 'tang', 'tantra', 'tarbaby', 'tard', 'teat', 'terror', 'terrorist', 'teste', 'testicle', 'testicles', 'thicklips', 'thirdeye', 'thirdleg', 'threesome', 'threeway', 'timbernigger', 'tinkle', 'tit',
+                'titbitnipply', 'titfuck', 'titfucker', 'titfuckin', 'titjob', 'titlicker', 'titlover', 'tits', 'tittie', 'titties', 'titty', 'tnt', 'toilet', 'tongethruster', 'tongue', 'tonguethrust', 'tonguetramp', 'tortur', 'torture', 'tosser', 'towelhead', 'trailertrash', 'tramp', 'trannie', 'tranny', 'transexual', 'transsexual', 'transvestite', 'triplex', 'trisexual', 'trojan', 'trots', 'tuckahoe', 'tunneloflove', 'turd', 'turnon', 'twat', 'twink', 'twinkie', 'twobitwhore', 'uck', 'uk', 'unfuckable', 'upskirt', 'uptheass', 'upthebutt', 'urinary', 'urinate', 'urine', 'usama', 'uterus', 'vagina', 'vaginal', 'vatican', 'vibr', 'vibrater', 'vibrator', 'vietcong', 'violence', 'virgin', 'virginbreaker', 'vomit', 'vulva', 'wab', 'wank', 'wanker', 'wanking',
+                'waysted', 'weapon', 'weenie', 'weewee', 'welcher', 'welfare', 'wetb', 'wetback', 'wetspot', 'whacker', 'whash', 'whigger', 'whiskey', 'whiskeydick',
+                'whiskydick', 'whit', 'whitenigger', 'whites', 'whitetrash', 'whitey', 'whiz', 'whop', 'whore', 'whorefucker', 'whorehouse', 'wigger', 'willie', 'williewanker', 'willy', 'wn', 'wog', "women's", 'wop', 'wtf', 'wuss', 'wuzzie', 'xtc', 'xxx', 'yankee', 'yellowman', 'zigabo', 'zipperhead',
+                'anal', 'anus', 'arse', 'ass', 'ass', 'fuck', 'ass', 'hole', 'assfucker', 'asshole', 'assshole', 'bastard', 'bitch', 'black', 'cock', 'bloody', 'hell', 'boong', 'cock', 'cockfucker', 'cocksuck', 'cocksucker', 'coon', 'coonnass', 'crap', 'cunt', 'cyberfuck', 'damn', 'darn', 'dick', 'dirty', 'douche', 'dummy', 'erect', 'erection', 'erotic', 'escort', 'fag', 'faggot', 'fuck','fuckass', 'fuckhole', 'goddamn', 'gook','hardcore', 'homoerotic', 'hore', 'lesbian', 'lesbians', 'mother', 'fucker', 'motherfuck', 'motherfucker', 'negro', 'nigger', 'orgasim', 'orgasm', 'penis', 'penisfucker', 'piss',  'porn', 'porno', 'pornography', 'pussy', 'retard', 'sadist', 'sex', 'sexy', 'shit', 'slut', 'bitch', 'suck', 'tits', 'viagra', 'whore', 'xxx']
     def tokenize(txt):
         """
         Remove any markup tags, e.g., HTML
@@ -145,6 +172,31 @@ def get_docs(train_size, readytosubmit):
             print(tokens)
         return tokens
 
+    def statfeaturesvectorizer(x,profanewords):
+        '''
+        makes statistical features for use in an ensemble with NNs
+        '''
+        numbwords = len(x.split())
+        numbofchars = len(x)
+        # numbofnouns =  len([(word,pos) for word, pos in pos_tag(word_tokenize(x)) if pos.startswith('NN')])
+        # numbofverbs =  len([(word,pos) for word, pos in pos_tag(word_tokenize(x)) if pos.startswith('VB')])
+        numbofcapitals =  sum(1 for c in x if c.isupper())
+        numofuniquewords =  len(set(w for w in x.split()))
+        numofuniquevslength = numofuniquewords / (numbwords+1)
+        numofcapsvlength = numbofcapitals / (numbwords+1)
+        # vbbynoun = numbofverbs / (numbofnouns + 1)
+        # averagesentimenttiemsusbjectivity = TextBlob(x).sentiment[0]*(1-TextBlob(x).sentiment[1])
+        profanitycount = len([w for w in x.split() if w.lower() in profanewords])#https://www.cs.cmu.edu/~biglou/resources/bad-words.txt #https://www.freewebheaders.com/full-list-of-bad-words-banned-by-google/
+        features = [\
+                    numbwords, numbofchars, \
+                    # numbofnouns,numbofverbs,\
+                    numbofcapitals,numofuniquewords,\
+                    # vbbynoun,\
+                    numofuniquevslength,numofcapsvlength,\
+                    # averagesentimenttiemsusbjectivity,\
+                    profanitycount\
+                    ]
+        return features
     #initalize variables
     questions = defaultdict()
     labels = defaultdict()
@@ -175,7 +227,19 @@ def get_docs(train_size, readytosubmit):
     
     total_questions = pd.concat((train_questions,test_questions), axis=0)
     vocab = list(set([item for sublist in total_questions.values for item in sublist]))
-    
+
+    if statfeaures:
+        print("----Creating Stat Features----")
+        trainlen = len(train)
+        questions = pd.concat([train['question_text'],test['question_text']], axis=0)
+        features = questions.progress_apply(statfeaturesvectorizer, profanewords=profanewords)
+        min_max_scaler = preprocessing.MinMaxScaler()
+        features = min_max_scaler.fit_transform(np.array([np.array(xi) for xi in features])) #preprocess
+        statvectors = defaultdict()
+        statvectors['traindata']=features[:trainlen,:]
+        statvectors['test']=features[trainlen:,:]
+    else:
+        statvectors=None
     # # use this vocab to make mispelled dict
     # print("----Correcting Spelling----")
     # changed = 0
@@ -200,12 +264,12 @@ def get_docs(train_size, readytosubmit):
     #     for (j,word) in enumerate(sentence):
     #         if word in mispell_dict.keys():
     #             train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
-    
+
 
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))  
-    return vocab, train_questions, train_labels, test_questions, train_ids, test_ids
+    return vocab, train_questions, train_labels, test_questions, train_ids, test_ids, statvectors
 
-def get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit):
+def get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit, stsvectors):
     '''
     Construct your n-grams: Create positive n-gram samples by collecting all pairs of adjacent
     tokens. Create 2 negative samples for each positive sample by keeping the first word the same
@@ -235,7 +299,7 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
     totalpadlength = max(max(map(len, train_context_values)),max(map(len, test_context_values))) #the longest question 
     train_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in train_context_values]) #needed because without padding we are lost 
     test_context_array = np.array([xi+[0]*(totalpadlength-len(xi)) for xi in test_context_values]) #needed because without padding we are lost 
-    train_context_label_array = np.array(train_context_labels)
+    train_context_label_array_full = np.array(train_context_labels)
 
     if readytosubmit:
         test_size = 0.2
@@ -244,9 +308,9 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
     valid_context_array = np.zeros(5)
     valid_context_label_array = np.zeros(5)
     test_context_label_array = np.zeros(len(test_context_array))
-    train_context_array, valid_context_array, train_context_label_array, valid_context_label_array = train_test_split(train_context_array, train_context_label_array, 
+    train_context_array, valid_context_array, train_context_label_array, valid_context_label_array = train_test_split(train_context_array, train_context_label_array_full, 
                                                                                                                         test_size=test_size,  random_state=1234, shuffle=True, 
-                                                                                                                        stratify=train_context_label_array)
+                                                                                                                        stratify=train_context_label_array_full)
     arrays_and_labels = defaultdict()
     arrays_and_labels = {"train_context_array":train_context_array,
                         "train_context_label_array":train_context_label_array,
@@ -264,9 +328,15 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
             print(ix_to_word[value])
         else: 
             ix_to_word[value]=[key] 
-
+    
+    #split stats vectors the same way 
+    if stsvectors != None:
+        stsvectors['train'], stsvectors['valid'], stsvectors['trainlabels'], stsvectors['validlabels'] = train_test_split(stsvectors['traindata'], train_context_label_array_full, 
+                                                                                                                        test_size=test_size,  random_state=1234, shuffle=True, 
+                                                                                                                        stratify=train_context_label_array_full)
+    # print(sum(stsvectors['validlabels'] - arrays_and_labels['valid_context_label_array'])) #confirmed same split
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
-    return arrays_and_labels, ix_to_word, vocab, totalpadlength
+    return arrays_and_labels, ix_to_word, vocab, totalpadlength, stsvectors
 
 def build_weights_matrix(vocab, embedding_file, wordindex):
     """
@@ -1229,6 +1299,247 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
         output.columns = ['qid', 'prediction']
         print(output.head())
         output.to_csv('submission.csv', index=False)
+
+def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, stsvectors, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+            erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
+    '''
+    This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
+    bidirectional will make the network bidirectional
+    '''
+    def format_tensors(vectorized_data, ydata, batch_size):
+        '''
+        helper function to format numpy vectors to the correct type, also determines the batch size for train, valid, and test sets
+        based on minibatch size
+        '''
+        X = torch.from_numpy(vectorized_data)
+        X = X.float()
+        y = torch.from_numpy(ydata)
+        y = y.long()
+        tensordata = data_utils.TensorDataset(X,y)
+        loader = data_utils.DataLoader(tensordata, batch_size=batch_size,shuffle=False)
+        return loader
+    
+    # print(np.hstack((vectorized_data['train_context_array'],stsvectors['train']))[0])
+    #randomly split into test and validation sets for stats features and regular text
+    trainloader = format_tensors(np.hstack((vectorized_data['train_context_array'],stsvectors['train'])),vectorized_data['train_context_label_array'],batch_size)
+    validloader = format_tensors(np.hstack((vectorized_data['valid_context_array'],stsvectors['valid'])),vectorized_data['valid_context_label_array'],batch_size)
+    testloader = format_tensors(np.hstack((vectorized_data['test_context_array'],stsvectors['test'])),vectorized_data['test_context_label_array'],batch_size)
+
+    def create_emb_layer(weights_matrix):
+        '''
+        creates torch embeddings layer from matrix
+        '''
+        num_embeddings, embedding_dim = weights_matrix.size()
+        emb_layer = nn.Embedding(num_embeddings, embedding_dim)
+        emb_layer.load_state_dict({'weight':weights_matrix})
+        return emb_layer, embedding_dim
+    
+
+    class RNNmodel(nn.Module):
+        '''
+        RNN model that can be changed to LSTM or GRU and made bidirectional if needed 
+        '''
+        def __init__(self, hidden_size, weights_matrix, embedding_dim, context_size, vocablen, bidirectional_status=False, rnntype="RNN", pre_trained=True):
+            super(RNNmodel, self).__init__()
+            if bidirectional_status:
+                num_directions = 2
+            else:
+                num_directions = 1
+            drp = 0.3
+
+            if pre_trained:
+                self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
+            else:
+                embedding_dim = embedding_dim
+                self.embedding = nn.Embedding(vocablen, embedding_dim)
+
+            if rnntype=="LSTM":
+                print("----Using LSTM-----")
+                self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional_status)
+            elif rnntype=="GRU":
+                print("----Using GRU-----")
+                self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional_status)
+            else:
+                print("----Using RNN-----")
+                self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                                    bidirectional=bidirectional_status)
+            self.dropout = nn.Dropout(drp)
+            self.relu = nn.ReLU()
+            self.linear = nn.Linear(hidden_size*num_directions*2, hidden_size*num_directions)
+            self.meetupfromrnn = nn.Linear(hidden_size*num_directions,100)
+            self.meetupfromffn = nn.Linear(7,100)
+            self.fc = nn.Linear(200,1)
+
+        def forward(self, inputs, sentencelengths, totalpadlength):
+            # print(inputs)
+            inputsrnn = inputs[:,:totalpadlength]
+            # print(inputsrnn)
+            embeds = self.embedding(inputsrnn.long())
+            # print(embeds)
+            # packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
+            out, (ht, ct) = self.rnn(embeds)
+            # outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
+            avg_pool = torch.mean(out, 1)
+            max_pool, _ = torch.max(out, 1)
+            conc = torch.cat(( avg_pool, max_pool), 1)
+            conc = self.relu(self.linear(conc))
+            conc = self.dropout(conc)
+            rnnmeet = self.relu(self.meetupfromrnn(conc))
+
+            inputsff = inputs[:,totalpadlength:]
+            # print(inputsff)
+            ffnmeet = self.relu(self.meetupfromffn(inputsff))
+            combined = torch.cat((rnnmeet, ffnmeet), 1)
+            yhat = self.fc(combined)
+            return yhat
+            
+    #initalize model parameters and variables
+    losses = []
+    def class_proportional_weights(train_labels):
+        '''
+        helper function to scale weights of classes in loss function based on their sampled proportions
+        # This custom loss function is defined to reduce the effect of class imbalance.
+        # Since there are so many samples labeled as "O", this allows the RNN to not 
+        # be weighted too heavily in that area.
+        '''
+        weights = []
+        flat_train_labels = [item for sublist in train_labels for item in sublist]
+        weights.append(1-(flat_train_labels.count(1)/(len(flat_train_labels)))) #proportional to number without tags
+        return weights
+    
+    weights = class_proportional_weights(vectorized_data['train_context_label_array'])
+    class_weights = torch.FloatTensor(weights).cuda()
+    criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights)
+
+    #initalize model parameters and variables
+    model = RNNmodel(hidden_dim, weights_matrix_torch,embedding_dimension, totalpadlength, vocablen, bidirectional_status, rnntype, pretrained_embeddings_status)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
+    model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
+    torch.backends.cudnn.benchmark = True #memory
+    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
+    
+    sig_fn = nn.Sigmoid()
+    f1_list = []
+    best_f1 = 0 
+    print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
+    for epoch in range(20): 
+        iteration = 0
+        running_loss = 0.0 
+        for i, (context, label) in enumerate(trainloader):
+            sentencelengths = []
+            for sentence in context:
+                sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
+            # zero out the gradients from the old instance
+            optimizer.zero_grad()
+            # Run the forward pass and get predicted output
+            context = context.to(device)
+            label = label.to(device)
+            yhat = model.forward(context, sentencelengths, totalpadlength) #required dimensions for batching
+            # yhat = yhat.view(-1,1)
+            # Compute Binary Cross-Entropy
+            loss = criterion(yhat, label.float())
+            #clear memory 
+            del context, label #memory 
+            # Do the backward pass and update the gradient
+            loss.backward()
+            optimizer.step()
+            iteration += 1
+            # Get the Python number from a 1-element Tensor by calling tensor.item()
+            running_loss += float(loss.item())
+            torch.cuda.empty_cache() #memory
+        losses.append(float(loss.item()))
+        del loss #memory 
+        gc.collect() #memory
+        torch.cuda.empty_cache() #memory
+
+    # Get the accuracy on the validation set for each epoch
+        with torch.no_grad():
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(validloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, sentencelengths,totalpadlength)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+                del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
+
+        if f1_list[-1] > best_f1: #save if it improves validation accuracy 
+            best_f1 = f1_list[-1]
+            bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
+        #early stopping condition
+        if epoch+1 >= 5: #start looking to stop after this many epochs
+            if f1_list[-1] < min(f1_list[-5:-1]): #if accuracy lower than lowest of last 4 values
+                print('...Stopping Early...')
+                break
+
+    print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
+
+    #error analysis if desired
+    if erroranalysis:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            contextsfull = []
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(validloader):
+                for (k, element) in enumerate(context): #per batch
+                        contextsfull.append(" ".join(list(itertools.chain.from_iterable([wordindex[x] for (i,x) in enumerate(context[k].tolist()) if i+1 < totalpadlength]))))
+                        labelsfull.extend(label.int().tolist())
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, sentencelengths,totalpadlength)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+        #print 20 errors 
+        printed = 0
+        for (i, pred) in enumerate(predictionsfull):
+            if pred != labelsfull[i]:
+                if printed < 20:
+                    print(' '.join([word for word in contextsfull[i].split() if word not in ['XXPADXX']]))
+                    print('predicted: %s' % (pred))
+                    print('labeled: %s' % (labelsfull[i]))
+                    printed +=1
+
+    if readytosubmit:
+        # Get the accuracy on the test set after training complete -- will have to submit to KAGGLE
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            predictionsfull = []
+            for a, (context, label) in enumerate(testloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, sentencelengths,totalpadlength)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+
+        #outputs results to csv
+        predictionsfinal = []
+        for element in predictionsfull:
+            predictionsfinal.append(element[0])
+        output = pd.DataFrame(list(zip(test_ids.tolist(),predictionsfinal)))
+        output.columns = ['qid', 'prediction']
+        print(output.head())
+        print(len(output))
+        output.to_csv('submission.csv', index=False)
+    return
 
 
 if __name__ == "__main__":
