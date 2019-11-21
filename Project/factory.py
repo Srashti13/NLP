@@ -55,11 +55,11 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 10000 #1306112 is full dataset
-    BATCH_SIZE = 100
+    train_size = 500 #1306112 is full dataset
+    BATCH_SIZE = 300
     embedding_dim = 300
     erroranalysis = True
-    pretrained_embeddings_status = False
+    pretrained_embeddings_status = True
     statfeaures = True
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
@@ -81,7 +81,7 @@ def main():
             glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex)
             para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex)
         combined_embedding = np.hstack((para_embedding*0.3,glove_embedding*0.7))
-        combined_embedding = pca.fit_transform(combined_embedding)
+        combined_embedding = torch.from_numpy(pca.fit_transform(combined_embedding))
     else:
         combined_embedding = None
 
@@ -304,7 +304,7 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
     if readytosubmit:
         test_size = 0.2
     else:
-        test_size = 0.2
+        test_size = 0.5
     valid_context_array = np.zeros(5)
     valid_context_label_array = np.zeros(5)
     test_context_label_array = np.zeros(len(test_context_array))
@@ -1391,6 +1391,7 @@ def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimens
             inputsff = inputs[:,totalpadlength:]
             # print(inputsff)
             ffnmeet = self.relu(self.meetupfromffn(inputsff))
+            ffnmeet = self.dropout(ffnmeet)
             combined = torch.cat((rnnmeet, ffnmeet), 1)
             yhat = self.fc(combined)
             return yhat
