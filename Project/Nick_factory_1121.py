@@ -63,8 +63,9 @@ def main():
     del glove_embedding
     del para_embedding
     
-    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), combined_embedding, num_epochs=3, 
-                      threshold=0.5, nsplits=5, totalpadlength=70, hidden_dim=100, learning_rate=0.001, batch_size=BATCH_SIZE)
+    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), combined_embedding, totalpadlength, num_epochs=3, 
+                      threshold=0.5, nsplits=5, hidden_dim=60, learning_rate=0.001, batch_size=BATCH_SIZE)
+
     
 def get_docs(train_size, readytosubmit):
 
@@ -303,8 +304,8 @@ def build_weights_matrix(vocab, embedding_file, wordindex, embed_type):
     return torch.from_numpy(weights_matrix)
 
 
-def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_tensor, num_epochs=3, 
-     threshold=0.5, nsplits=5, totalpadlength=70, hidden_dim=100, learning_rate=0.001,
+def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_tensor, totalpadlength, num_epochs=3, 
+     threshold=0.5, nsplits=5, hidden_dim=100, learning_rate=0.001,
      batch_size=500):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -409,7 +410,6 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
         
     seed = 1234
     BATCH_SIZE = batch_size
-    BATCH_SIZE = 500
     NUM_EPOCHS = num_epochs
     HIDDEN_DIM = hidden_dim
     EMBEDDING_DIM = 300
