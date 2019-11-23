@@ -55,8 +55,8 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=True
-    train_size = 500 #1306112 is full dataset
-    BATCH_SIZE = 20
+    train_size = 100000 #1306112 is full dataset
+    BATCH_SIZE = 1000
     embedding_dim = 300
     erroranalysis = True
     pretrained_embeddings_status = False
@@ -86,21 +86,21 @@ def main():
         combined_embedding = None
 
     #run models
-    run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
-            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
-        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+    #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
+    #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
     
     run_Stat_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, stsvectors, totalpadlength, weights_matrix_torch=combined_embedding,
         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
