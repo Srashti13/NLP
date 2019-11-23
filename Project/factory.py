@@ -54,12 +54,12 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    readytosubmit=False
+    readytosubmit=True
     train_size = 500 #1306112 is full dataset
-    BATCH_SIZE = 300
+    BATCH_SIZE = 20
     embedding_dim = 300
     erroranalysis = True
-    pretrained_embeddings_status = True
+    pretrained_embeddings_status = False
     statfeaures = True
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
@@ -86,21 +86,21 @@ def main():
         combined_embedding = None
 
     #run models
-    # run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
-    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
+            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-    #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
-    #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
+        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
+        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
     
     run_Stat_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, stsvectors, totalpadlength, weights_matrix_torch=combined_embedding,
         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
@@ -490,8 +490,9 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension,
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
-    torch.backends.cudnn.benchmark = True #memory
-    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
+    if not readytosubmit:
+        torch.backends.cudnn.benchmark = True #memory
+        torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     sig_fn = nn.Sigmoid()
     f1_list = []
@@ -510,18 +511,21 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension,
             # Compute Binary Cross-Entropy
             loss = criterion(yhat, label.float())
             #clear memory 
-            del context, label #memory 
+            if not readytosubmit:
+                del context, label #memory 
             # Do the backward pass and update the gradient
             loss.backward()
             optimizer.step()
             iteration += 1
             # Get the Python number from a 1-element Tensor by calling tensor.item()
             running_loss += float(loss.item())
-            torch.cuda.empty_cache() #memory
+            if not readytosubmit:
+                torch.cuda.empty_cache() #memory
         losses.append(float(loss.item()))
-        del loss #memory 
-        gc.collect() #memory
-        torch.cuda.empty_cache() #memory
+        if not readytosubmit:
+            del loss #memory 
+            gc.collect() #memory
+            torch.cuda.empty_cache() #memory
 
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
@@ -534,11 +538,13 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension,
                 predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
                 labelsfull.extend(label.int().tolist())
-                del context, label, predictions #memory
-            gc.collect()#memory
-            torch.cuda.empty_cache()#memory
-            # print('\n')
-            # gpu_usage()
+                if not readytosubmit:
+                    del context, label, predictions #memory
+            if not readytosubmit:
+                gc.collect()#memory
+                torch.cuda.empty_cache()#memory
+                # print('\n')
+                # gpu_usage()
             f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
             f1_list.append(f1score)
         print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
@@ -714,8 +720,9 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
-    torch.backends.cudnn.benchmark = True #memory
-    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
+    if not readytosubmit:
+        torch.backends.cudnn.benchmark = True #memory
+        torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     sig_fn = nn.Sigmoid()
     f1_list = []
@@ -738,18 +745,21 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, 
             # Compute Binary Cross-Entropy
             loss = criterion(yhat, label.float())
             #clear memory 
-            del context, label #memory 
+            if not readytosubmit:
+                del context, label #memory 
             # Do the backward pass and update the gradient
             loss.backward()
             optimizer.step()
             iteration += 1
             # Get the Python number from a 1-element Tensor by calling tensor.item()
             running_loss += float(loss.item())
-            torch.cuda.empty_cache() #memory
+            if not readytosubmit:
+                torch.cuda.empty_cache() #memory
         losses.append(float(loss.item()))
-        del loss #memory 
-        gc.collect() #memory
-        torch.cuda.empty_cache() #memory
+        if not readytosubmit:
+            del loss #memory 
+            gc.collect() #memory
+            torch.cuda.empty_cache() #memory
 
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
@@ -765,11 +775,13 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, 
                 predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
                 labelsfull.extend(label.int().tolist())
-                del context, label, predictions #memory
-            gc.collect()#memory
-            torch.cuda.empty_cache()#memory
-            # print('\n')
-            # gpu_usage()
+                if not readytosubmit:
+                    del context, label, predictions #memory
+            if not readytosubmit:
+                gc.collect()#memory
+                torch.cuda.empty_cache()#memory
+                # print('\n')
+                # gpu_usage()
             f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
             f1_list.append(f1score)
         print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
@@ -940,8 +952,9 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimensi
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
-    torch.backends.cudnn.benchmark = True #memory
-    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
+    if not readytosubmit:
+        torch.backends.cudnn.benchmark = True #memory
+        torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     sig_fn = nn.Sigmoid()
     f1_list = []
@@ -960,19 +973,22 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimensi
             # yhat = yhat.view(-1,1)
             # Compute Binary Cross-Entropy
             loss = criterion(yhat, label.float())
-            #clear memory 
-            del context, label #memory 
+            #clear memory
+            if not readytosubmit: 
+                del context, label #memory 
             # Do the backward pass and update the gradient
             loss.backward()
             optimizer.step()
             iteration += 1
             # Get the Python number from a 1-element Tensor by calling tensor.item()
             running_loss += float(loss.item())
-            torch.cuda.empty_cache() #memory
+            if not readytosubmit:
+                torch.cuda.empty_cache() #memory
         losses.append(float(loss.item()))
-        del loss #memory 
-        gc.collect() #memory
-        torch.cuda.empty_cache() #memory
+        if not readytosubmit:
+            del loss #memory 
+            gc.collect() #memory
+            torch.cuda.empty_cache() #memory
 
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
@@ -985,11 +1001,13 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimensi
                 predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
                 labelsfull.extend(label.int().tolist())
-                del context, label, predictions #memory
-            gc.collect()#memory
-            torch.cuda.empty_cache()#memory
-            # print('\n')
-            # gpu_usage()
+                if not readytosubmit:
+                    del context, label, predictions #memory
+            if not readytosubmit:
+                gc.collect()#memory
+                torch.cuda.empty_cache()#memory
+                # print('\n')
+                # gpu_usage()
             f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
             f1_list.append(f1score)
         print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
@@ -1186,8 +1204,9 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
-    torch.backends.cudnn.benchmark = True #memory
-    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
+    if not readytosubmit:
+        torch.backends.cudnn.benchmark = True #memory
+        torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     sig_fn = nn.Sigmoid()
     f1_list = []
@@ -1206,19 +1225,22 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
             # yhat = yhat.view(-1,1)
             # Compute Binary Cross-Entropy
             loss = criterion(yhat, label.float())
-            #clear memory 
-            del context, label #memory 
+            #clear memory
+            if not readytosubmit: 
+                del context, label #memory 
             # Do the backward pass and update the gradient
             loss.backward()
             optimizer.step()
             iteration += 1
             # Get the Python number from a 1-element Tensor by calling tensor.item()
             running_loss += float(loss.item())
-            torch.cuda.empty_cache() #memory
+            if not readytosubmit:
+                torch.cuda.empty_cache() #memory
         losses.append(float(loss.item()))
-        del loss #memory 
-        gc.collect() #memory
-        torch.cuda.empty_cache() #memory
+        if not readytosubmit:
+            del loss #memory 
+            gc.collect() #memory
+            torch.cuda.empty_cache() #memory
 
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
@@ -1231,11 +1253,12 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
                 predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
                 labelsfull.extend(label.int().tolist())
-                del context, label, predictions #memory
-            gc.collect()#memory
-            torch.cuda.empty_cache()#memory
-            # print('\n')
-            # gpu_usage()
+                if not readytosubmit:
+                    del context, label, predictions #memory
+                    gc.collect()#memory
+                    torch.cuda.empty_cache()#memory
+                    # print('\n')
+                    # gpu_usage()
             f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
             f1_list.append(f1score)
         print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
@@ -1419,8 +1442,9 @@ def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimens
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available
     model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
-    torch.backends.cudnn.benchmark = True #memory
-    torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
+    if not readytosubmit:
+        torch.backends.cudnn.benchmark = True #memory
+        torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     sig_fn = nn.Sigmoid()
     f1_list = []
@@ -1443,18 +1467,21 @@ def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimens
             # Compute Binary Cross-Entropy
             loss = criterion(yhat, label.float())
             #clear memory 
-            del context, label #memory 
+            if not readytosubmit:
+                del context, label #memory 
             # Do the backward pass and update the gradient
             loss.backward()
             optimizer.step()
             iteration += 1
             # Get the Python number from a 1-element Tensor by calling tensor.item()
             running_loss += float(loss.item())
-            torch.cuda.empty_cache() #memory
+            if not readytosubmit:
+                torch.cuda.empty_cache() #memory
         losses.append(float(loss.item()))
-        del loss #memory 
-        gc.collect() #memory
-        torch.cuda.empty_cache() #memory
+        if not readytosubmit:
+            del loss #memory 
+            gc.collect() #memory
+            torch.cuda.empty_cache() #memory
 
     # Get the accuracy on the validation set for each epoch
         with torch.no_grad():
@@ -1470,7 +1497,8 @@ def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimens
                 predictions = (sig_fn(yhat) > 0.5)
                 predictionsfull.extend(predictions.int().tolist())
                 labelsfull.extend(label.int().tolist())
-                del context, label, predictions #memory
+                if not readytosubmit:
+                    del context, label, predictions #memory
             gc.collect()#memory
             torch.cuda.empty_cache()#memory
             # print('\n')
@@ -1478,6 +1506,7 @@ def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimens
             f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
             f1_list.append(f1score)
         print('--- Epoch: {} | Validation F1: {} ---'.format(epoch+1, f1_list[-1])) 
+        print("--- %s seconds ---" % (round((time.time() - start_time),2)))
 
         if f1_list[-1] > best_f1: #save if it improves validation accuracy 
             best_f1 = f1_list[-1]

@@ -38,8 +38,8 @@ from sklearn.decomposition import PCA
 
 
 
-localfolder = '/kaggle/input/quora-insincere-questions-classification/'
-kagglefolder = '/kaggle/input/quora-insincere-questions-classification/'
+localfolder = 'kaggle/input/quora-insincere-questions-classification/'
+kagglefolder = 'kaggle/input/quora-insincere-questions-classification/'
 start_time = time.time()
 
 
@@ -48,7 +48,7 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    readytosubmit=True
+    readytosubmit=False
     train_size = 3000 #1306112 is full dataset
     BATCH_SIZE = 500
     embedding_dim = 300
