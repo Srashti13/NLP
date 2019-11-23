@@ -81,6 +81,7 @@ def main():
             glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex)
             para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex)
         combined_embedding = np.hstack((para_embedding*0.3,glove_embedding*0.7))
+        del para_embedding, glove_embedding
         combined_embedding = torch.from_numpy(pca.fit_transform(combined_embedding))
     else:
         combined_embedding = None
