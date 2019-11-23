@@ -54,13 +54,14 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    readytosubmit=True
-    train_size = 100000 #1306112 is full dataset
+    readytosubmit=False
+    train_size = 1000 #1306112 is full dataset
     BATCH_SIZE = 1000
     embedding_dim = 300
     erroranalysis = True
     pretrained_embeddings_status = False
     statfeaures = True
+    epochs = 5
 
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     #get data into vectorized format and extract vocab 
@@ -87,23 +88,23 @@ def main():
         combined_embedding = None
 
     #run models
-    # run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
-    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
+            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
+            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    # run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, totalpadlength, weights_matrix_torch=combined_embedding,
-    #     hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
-    #     learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
+        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
+        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
     
-    run_Stat_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, stsvectors, totalpadlength, weights_matrix_torch=combined_embedding,
+    run_Stat_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, stsvectors, totalpadlength, weights_matrix_torch=combined_embedding,
         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
     return
@@ -409,7 +410,7 @@ def build_weights_matrix(vocab, embedding_file, wordindex):
     print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
     return torch.from_numpy(weights_matrix)
 
-def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension, epochs, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -499,7 +500,7 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension,
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(20): 
+    for epoch in range(epochs): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -611,7 +612,7 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension,
         output.to_csv('submission.csv', index=False)
     return
     
-def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, epochs, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -729,7 +730,7 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, 
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(20): 
+    for epoch in range(epochs): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -850,7 +851,7 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, 
         output.to_csv('submission.csv', index=False)
     return
 
-def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, epochs, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -961,7 +962,7 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimensi
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(20): 
+    for epoch in range(epochs): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -1073,7 +1074,7 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimensi
         print(output.head())
         output.to_csv('submission.csv', index=False)
 
-def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_dimension, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_dimension, epochs, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -1213,7 +1214,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(20): 
+    for epoch in range(epochs): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -1324,7 +1325,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
         print(output.head())
         output.to_csv('submission.csv', index=False)
 
-def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, stsvectors, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
+def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, epochs, stsvectors, totalpadlength=70,weights_matrix_torch=[], hidden_dim=100, readytosubmit=False, 
             erroranalysis=False, rnntype="RNN", bidirectional_status=False, batch_size=500, learning_rate=0.1, pretrained_embeddings_status=True):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -1451,7 +1452,7 @@ def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimens
     f1_list = []
     best_f1 = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(20): 
+    for epoch in range(epochs): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
