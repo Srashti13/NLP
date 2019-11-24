@@ -1,0 +1,186 @@
+
+third                          JJ                *             *    -                       *      
+quarter                        NN                *)            *    -                       *      
+,                              ,                 *             *    -                       *      
+when                           WRB   (SBAR(WHADVP*)            *    -                       *      
+the                            DT           (S(NP*             *    -                       *      
+industry                       NN                *)            *    -                       *      
+was                            AUX            (VP*             *    -                       *      
+in                             IN             (PP*             *    -                       *      
+the                            DT          (NP(NP*             *    -                       *      
+midst                          NN                *)            *    -                       *      
+of                             IN             (PP*             *    -                       *      
+a                              DT             (NP*             *    -                       *      
+boom                           NN                *)))))))))    *    -                       *)     
+,                              ,                 *             *    -                       *      
+the                            DT             (NP*             *    -                    (A0*      
+company                        NN                *)            *    -                       *)     
+had                            AUX            (VP*             *    have                  (V*)     
+net                            NN          (NP(NP*)            *    -                    (A1*      
+of                             IN             (PP*             *    -                       *      
+$                              $        (NP(NP(QP*             *    -                       *      
+61                             CD                *             *    -                       *      
+million                        CD                *))           *    -                       *      
+,                              ,                 *             *    -                       *      
+or                             CC                *             *    -                       *      
+$                              $           (NP(NP*             *    -                       *      
+1.70                           CD                *)            *    -                       *      
+a                              DT             (NP*             *    -                       *      
+share                          NN                *))           *    -                       *      
+,                              ,                 *)))          *    -                       *      
+on                             IN             (PP*             *    -                       *      
+sales                          NNS         (NP(NP*)            *    -                       *      
+of                             IN             (PP*             *    -                       *      
+$                              $           (NP(QP*             *    -                       *      
+1.02                           CD                *             *    -                       *      
+billion                        CD                *))))))       *    -                       *)     
+.                              .                 *))           *    -                       *      
+                                 
+Predicting                     VBG   (S1(S(S(VP*         *    predict               (V*)     
+the                            DT        (NP(NP*         *    -                    (A1*      
+financial                      JJ              *         *    -                       *      
+results                        NNS             *)        *    -                       *      
+of                             IN           (PP*         *    -                       *      
+computer                       NN           (NP*         *    -                       *      
+firms                          NNS             *)))))    *    -                       *)     
+has                            AUX          (VP*         *    -                       *      
+been                           AUX          (VP*         *    -                       *      
+a                              DT           (NP*         *    -                       *      
+tough                          JJ              *         *    -                       *      
+job                            NN              *)        *    -                       *      
+lately                         RB         (ADVP*)))      *    -                       *      
+.                              .               *))       *    -                       *      
+                                 
+Take                           VB    (S1(S(VP*           *    take                  (V*)              *      
+Microsoft                      NNP     (NP(NP*       (ORG*    -                    (A1*            (A1*      
+Corp.                          NNP           *)          *)   -                       *               *)     
+,                              ,             *           *    -                       *               *      
+the                            DT      (NP(NP*           *    -                       *               *      
+largest                        JJS           *           *    -                       *               *      
+maker                          NN            *)          *    -                       *               *      
+of                             IN         (PP*           *    -                       *               *      
+personal                       JJ         (NP*           *    -                       *               *      
+computer                       NN            *           *    -                       *               *      
+software                       NN            *))))       *    -                       *               *      
+and                            CC            *           *    -                       *               *      
+generally                      RB    (VP(ADVP*)          *    -                       *        (AM-MNR*)     
+considered                     VBN           *           *    consider                *             (V*)     
+an                             DT       (S(NP*           *    -                       *            (A2*      
+industry                       NN            *           *    -                       *               *      
+bellwether                     NN            *))))       *    -                       *)              *)     
+.                              .             *))         *    -                       *               *      
+                                 
+In                             IN        (S1(S(PP*                          *    -                (AM-TMP*               *      
+July                           NNP            (NP*))                        *    -                       *)              *      
+,                              ,                 *                          *    -                       *               *      
+the                            DT             (NP*                          *    -                    (A0*               *      
+company                        NN                *)                         *    -                       *)              *      
+stunned                        VBD            (VP*                          *    stun                  (V*)              *      
+Wall                           NNP            (NP*                      (LOC*    -                    (A1*               *      
+Street                         NNP               *)                         *)   -                       *)              *      
+with                           IN             (PP*                          *    -                    (A2*               *      
+the                            DT             (NP*                          *    -                       *               *      
+prediction                     NN                *                          *    -                       *               *      
+that                           IN           (SBAR*                          *    -                       *               *      
+growth                         NN        (S(NP(NP*)                         *    -                       *               *      
+in                             IN             (PP*                          *    -                       *               *      
+the                            DT             (NP*                          *    -                       *               *      
+personal                       JJ                *                          *    -                       *               *      
+computer                       NN                *                          *    -                       *               *      
+business                       NN                *)))                       *    -                       *               *      
+overall                        RB           (ADVP*)                         *    -                       *               *      
+would                          MD             (VP*                          *    -                       *               *      
+be                             AUX            (VP*                          *    -                       *               *      
+only                           RB       (NP(NP(QP*                          *    -                       *               *      
+10                             CD                *)                         *    -                       *               *      
+%                              NN                *)                         *    -                       *               *      
+in                             IN             (PP*                          *    -                       *               *      
+1990                           CD          (NP(NP*)                         *    -                       *               *      
+,                              ,                 *                          *    -                       *               *      
+a                              DT          (NP(NP*                          *    -                       *            (A1*      
+modest                         JJ                *                          *    -                       *               *      
+increase                       NN                *)                         *    -                       *               *)     
+when                           WRB   (SBAR(WHADVP*)                         *    -                       *               *      
+compared                       VBN          (S(VP*                          *    compare                 *             (V*)     
+with                           IN             (PP*                          *    -                       *            (A2*      
+the                            DT          (NP(NP*                          *    -                       *               *      
+sizzling                       JJ                *                          *    -                       *               *      
+expansion                      NN                *)                         *    -                       *               *      
+of                             IN             (PP*                          *    -                       *               *      
+years                          NNS         (NP(NP*)                         *    -                       *               *      
+past                           JJ           (ADJP*)))))))))))))))))))       *    -                       *)              *)     
+.                              .                 *))                        *    -                       *               *      
+                                 
+Investors                      NNS     (S1(S(NP*)                  *    -                    (A0*)           (A0*)           (A0*)              *               *      
+--                             :           (PRN*                   *    -                       *        (AM-ADV*               *               *               *      
+taking                         VBG        (S(VP*                   *    take                  (V*)              *               *               *               *      
+this                           DT           (NP*)                  *    -                    (A1*)              *               *               *               *      
+as                             IN           (PP*                   *    -                    (A2*               *               *               *               *      
+a                              DT           (NP*                   *    -                       *               *               *               *               *      
+sign                           NN              *                   *    -                       *               *               *               *               *      
+that                           IN         (SBAR*                   *    -                       *               *               *               *               *      
+a                              DT         (S(NP*                   *    -                       *               *               *               *               *      
+broad                          JJ              *                   *    -                       *               *               *               *               *      
+industry                       NN              *                   *    -                       *               *               *               *               *      
+slump                          NN              *)                  *    -                       *               *               *               *               *      
+was                            AUX          (VP*                   *    -                       *               *               *               *               *      
+in                             IN           (PP*                   *    -                       *               *               *               *               *      
+the                            DT           (NP*                   *    -                       *               *               *               *               *      
+offing                         NN              *)))))))))          *    -                       *)              *               *               *               *      
+--                             :               *)                  *    -                       *               *)              *               *               *      
+reacted                        VBD          (VP*                   *    react                   *             (V*)              *               *               *      
+by                             IN           (PP*                   *    -                       *            (A2*               *               *               *      
+selling                        VBG        (S(VP*                   *    sell                    *               *             (V*)              *               *      
+the                            DT     (NP(NP(NP*                   *    -                       *               *            (A1*            (A1*            (A1*      
+company                        NN              *                   *    -                       *               *               *               *               *      
+'s                             POS             *)                  *    -                       *               *               *               *               *      
+stock                          NN              *)                  *    -                       *               *               *               *)              *)     
+,                              ,               *                   *    -                       *               *               *               *               *      
+which                          WDT   (SBAR(WHNP*)                  *    -                       *               *               *          (R-A1*)         (R-A1*)     
+lost                           VBD        (S(VP*                   *    lose                    *               *               *             (V*)              *      
+$                              $         (NP(NP*                   *    -                       *               *               *            (A2*               *      
+3.25                           CD              *)                  *    -                       *               *               *               *)              *      
+that                           DT           (NP*                   *    -                       *               *               *        (AM-TMP*               *      
+day                            NN              *))                 *    -                       *               *               *               *)              *      
+to                             TO         (S(VP*                   *    -                       *               *               *        (AM-ADV*               *      
+close                          VB           (VP*                   *    close                   *               *               *               *             (V*)     
+at                             IN           (PP*                   *    -                       *               *               *               *        (AM-EXT*      
+$                              $         (NP(NP*                   *    -                       *               *               *               *               *      
+52                             CD              *)                  *    -                       *               *               *               *               *)     
+in                             IN           (PP*                   *    -                       *               *               *               *        (AM-LOC*      
+national                       JJ           (NP*                   *    -                       *               *               *               *               *      
+over-the-counter               JJ              *                   *    -                       *               *               *               *               *      
+trading                        NN              *)))))))))))))))    *    -                       *               *)              *)              *)              *)     
+.                              .               *))                 *    -                       *               *               *               *               *      
+                                 
+But                            CC       (S1(S*        *    -              
+that                           DT         (NP*)       *    -              
+was                            AUX        (VP*        *    -              
+all                            DT      (NP(NP*)       *    -              
+of                             IN         (PP*        *    -              
+three                          CD    (ADVP(NP*        *    -              
+months                         NNS           *)       *    -              
+ago                            RB            *))))    *    -              
+.                              .             *))      *    -              
+                                 
+Last                           JJ       (S1(S(NP*               *    -                (AM-TMP*               *               *               *      
+week                           NN               *)              *    -                       *)              *               *               *      
+,                              ,                *               *    -                       *               *               *               *      
+Microsoft                      NNP           (NP*)          (ORG*)   -                    (A0*)              *               *               *      
+said                           VBD           (VP*               *    say                   (V*)              *               *               *      
+it                             PRP    (SBAR(S(NP*)              *    -                    (A1*            (A0*)              *               *      
+expects                        VBZ           (VP*               *    expect                  *             (V*)              *               *      
+revenue                        NN       (S(NP(NP*)              *    -                       *            (A1*               *            (A1*      
+for                            IN            (PP*               *    -                       *               *               *               *      
+its                            PRP$       (NP(NP*               *    -                       *               *            (A1*               *      
+first                          JJ               *               *    -                       *               *               *               *      
+quarter                        NN               *)              *    -                       *               *               *)              *      
+ended                          VBN           (VP*               *    end                     *               *             (V*)              *      
+Sept.                          NNP           (NP*               *    -                       *               *        (AM-TMP*               *      
+30                             CD               *)))))          *    -                       *               *               *)              *)     
+to                             TO            (VP*               *    -                       *               *               *               *      
+increase                       VB            (VP*               *    increase                *               *               *             (V*)     
+34                             CD            (NP*               *    -                       *               *               *            (A2*      
+%                              NN               *))))))))       *    -                       *)              *)              *               *)     
+.                              .                *))             *    -                       *               *               *               *      
+                                 

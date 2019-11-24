@@ -1,3 +1,4 @@
+
 third                          JJ                *             *    -                       *      
 quarter                        NN                *)            *    -                       *      
 ,                              ,                 *             *    -                       *      
