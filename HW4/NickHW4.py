@@ -1,4 +1,4 @@
-#%% Homework 4
+### Homework 4
 import re
 from collections import defaultdict
 import numpy as np
@@ -10,10 +10,12 @@ import torch.nn as nn
 import gc
 from sklearn.metrics import accuracy_score
 import pandas as pd
-#%%
+from sklearn.preprocessing import LabelEncoder
+
+
 def main():
     train, test = preprocessdata()
-    
+    train_context_array, encoded_roles, verb_list = get_sentences(train, test)
     return
 
 def preprocessdata():
@@ -90,5 +92,83 @@ def preprocessdata():
 
     return train_df, test_df
 
+def get_sentences(train, test):
+    # Getting a list of every sentence and every semantic role corresponding to the 
+    # words in the sentence
+    break_indices = []
+    for i, row in train.iterrows():
+        if row['word'] == '<BREAK>':
+            break_indices.append(i)
+    
+    sentences = []
+    roles = []
+    for i in range(len(break_indices)-1):
+        for col in train.columns[5:]:
+            if train[col][break_indices[i] + 1] == "None":
+                break
+            else:
+               sentences.append(train['word'][break_indices[i]+1:break_indices[i+1]].tolist()) 
+               roles.append(train[col][break_indices[i]+1:break_indices[i+1]].tolist())
+    
+    ## Getting a list of one hot encoded lists where 1 signifies the corresponding word is the Verb
+    verb_list = []
+    
+    for sentence in roles:
+        temp_verb_list = []
+        for word in sentence:
+            if word == "V":
+                temp_verb_list.append(1)
+            else:
+                temp_verb_list.append(0)
+        verb_list.append(temp_verb_list)
+        
+    #padding the sentences so that they're all equal length
+    max_sent_len = 67
+    for sentence in sentences:
+        sentence.extend('<pad>' for i in range(max_sent_len-len(sentence)))
+    for role in roles:
+        role.extend('<pad>' for i in range(max_sent_len-len(role)))
+    # using 2 as a padding signifier in the verb_list
+    for verb in verb_list:
+        verb.extend(2 for i in range(max_sent_len-len(verb)))
+        
+    # There are 89 different roles, which means this is a dense multiclass classification problem 
+    types_of_roles = []
+    for role in roles:
+        for word in role:
+            types_of_roles.append(word)
+    
+    print("Number of Argument Roles in Train: ", len(np.unique(types_of_roles)))
+
+    # Transforming the roles into numerical form and creating an array [num_sentences x max_sent_len]
+    encoded_roles = []
+    le = LabelEncoder()
+    le.fit(types_of_roles)
+    for role in roles:
+        encoding = le.transform(role)
+        encoded_roles.append(encoding)
+    encoded_roles = np.array(encoded_roles)
+
+    # Getting the entire vocab of the training set and creating a vocab_index dict
+    
+    total_vocab = []
+    
+    for sent in sentences:
+        for word in sent:
+            total_vocab.append(word)
+    
+    total_vocab = list(set(total_vocab))
+    vocab_index = {v:i+1 for i,v in enumerate(total_vocab) if v != '<pad>'}
+    vocab_index['<pad>'] = 0
+
+    # Mapping the training sentence words to an array
+    train_context_values = []
+    for sent in sentences:
+        train_context_values.append([vocab_index[w] for w in sent])
+    
+    train_context_array = np.array(train_context_values)
+    
+    return train_context_array, encoded_roles, np.array(verb_list)
+    
 if __name__ == "__main__":
     main()
