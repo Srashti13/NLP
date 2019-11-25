@@ -12,6 +12,7 @@ from sklearn.metrics import accuracy_score
 import pandas as pd
 import time
 import math
+import os
 from sklearn.model_selection import train_test_split
 
 start_time = time.time()
@@ -20,10 +21,10 @@ def main():
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     train, test = preprocessdata()
     vectorized_data, indicies, revindicies, vocab = getvectors(train, test)
-    # weights_matrix_torch = build_weights_matrix(vocab, "GoogleNews-vectors-negative300.txt", embedding_dim=300)
-
-    run_RNN(vectorized_data, vocab, indicies, hidden_dim=256,
-            bidirectional=True, pretrained_embeddings_status=False, RNNTYPE="LSTM")
+    weights_matrix_torch = build_weights_matrix(vocab, "GoogleNews-vectors-negative300.txt", embedding_dim=300)
+    # weights_matrix_torch = None
+    run_RNN(vectorized_data, vocab, indicies,revindicies, weights_matrix_torch=weights_matrix_torch, hidden_dim=256,
+            bidirectional=True, pretrained_embeddings_status=True, RNNTYPE="LSTM")
 
     return
 
@@ -58,7 +59,7 @@ def preprocessdata():
                 prop_values.append(prop_value)     
         return prop_values
     print("--- Extracting Train --- %s seconds ---" % (round((time.time() - start_time),2)))
-    train = r"data.wsj/train-set-small.txt"
+    train = r"data.wsj/train-set.txt"
     vocab = defaultdict(list)
     doc = []
     with open(train) as f:
@@ -82,7 +83,7 @@ def preprocessdata():
     # print(train_df.head(50))
     print("--- Extracting Test --- %s seconds ---" % (round((time.time() - start_time),2)))
     #preprocess test 
-    test = r"data.wsj/test-set-small.txt"
+    test = r"data.wsj/test-set.txt"
     vocab = defaultdict(list)
     doc = []
     with open(test) as f:
@@ -195,7 +196,6 @@ def getvectors(train,test):
     train_labelsfull = train_sentences[:,-1,:]
     train_sentencesfull = train_sentences[:,:-2,:]
     splitpoint = int(round(train_sentencesfull.shape[0]*.8))
-    print(train_labelsfull.shape)
     train_sentences = train_sentencesfull[:splitpoint,:,:]
     valid_sentences = train_sentencesfull[splitpoint:,:,:]
     train_labels = train_labelsfull[:splitpoint,:]
@@ -324,7 +324,7 @@ def build_weights_matrix(vocab, embedding_file, embedding_dim):
     print("{:.2f}% ({}/{}) of the vocabulary were in the pre-trained embedding.".format((words_found/len(vocab))*100,words_found,len(vocab)))
     return torch.from_numpy(weights_matrix)
 
-def run_RNN(vectorized_data, vocab, revindicies, hidden_dim, weights_matrix_torch=[], bidirectional=False,pretrained_embeddings_status=False, 
+def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_matrix_torch=[], bidirectional=False,pretrained_embeddings_status=False, 
             RNNTYPE="RNN"):
     '''
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
@@ -346,49 +346,68 @@ def run_RNN(vectorized_data, vocab, revindicies, hidden_dim, weights_matrix_torc
         return loader
 
     # building data loaders
-    NUM_MINI_BATCHES = 200 #not 2000 for time purposes
+    NUM_MINI_BATCHES = 2 #not 2000 for time purposes
     trainloader = format_tensors(vectorized_data,'train',NUM_MINI_BATCHES)
     validloader = format_tensors(vectorized_data,'valid',NUM_MINI_BATCHES)
     testloader = format_tensors(vectorized_data,'test',NUM_MINI_BATCHES)
-    
-    def create_emb_layer(weights_matrix, non_trainable=False):
+
+
+
+    def create_emb_layer(weights_matrix):
         '''
         creates torch embeddings layer from matrix
         '''
         num_embeddings, embedding_dim = weights_matrix.size()
         emb_layer = nn.Embedding(num_embeddings, embedding_dim)
         emb_layer.load_state_dict({'weight':weights_matrix})
-        if non_trainable:
-            emb_layer.weight.requires_grad = False
-        return emb_layer, num_embeddings, embedding_dim
+        return emb_layer, embedding_dim
+    
     
     class RNNmodel(nn.Module):
-        def __init__(self, weights_matrix, hidden_size, bidirectional, pre_trained=True):
+        def __init__(self, weights_matrix, hidden_size, bidirectional, pre_trained=True, revindicies=30):
             super(RNNmodel, self).__init__()
             if bidirectional:
                 num_directions = 2
             else:
                 num_directions = 1
-            self.embedding, num_embeddings, embedding_dim = create_emb_layer(weights_matrix, pre_trained)
+
+            if pre_trained:
+                self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
+            else:
+                embedding_dim = 300
+                self.embedding = nn.Embedding(len(vocab), embedding_dim)
+            numextrafeatures = 2
+            possibleargfeatures = len(revindicies['prop_to_ix'].keys())
+            
             if RNNTYPE=="LSTM":
                 print("----Using LSTM-----")
-                self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                self.rnn = nn.LSTM(embedding_dim+numextrafeatures, hidden_size=hidden_size, batch_first=True,
                                     bidirectional=bidirectional)
             elif RNNTYPE=="GRU":
                 print("----Using GRU-----")
-                self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                self.rnn = nn.GRU(embedding_dim+numextrafeatures, hidden_size=hidden_size, batch_first=True,
                                     bidirectional=bidirectional)
             else:
                 print("----Using RNN-----")
-                self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True,
+                self.rnn = nn.RNN(embedding_dim+numextrafeatures, hidden_size=hidden_size, batch_first=True,
                                     bidirectional=bidirectional)
-            self.fc = nn.Linear(hidden_size*num_directions,10)
+            self.fc = nn.Linear(hidden_size*num_directions, possibleargfeatures)
             
         def forward(self, inputs):
-            embeds = self.embedding(inputs) # dim: batch_size x batch_max_len x embedding_dim
-            out, _ = self.rnn(embeds) # dim: batch_size x batch_max_len x lstm_hidden_dim*directions 
+            # dim: batch x dims x seq_len 
+            #send words to embedding layer
+            embeds = self.embedding(inputs[:,2,:]) # dim: batch x dims x seq_len x embedding_dim
+            # print(embeds.shape)
+            otherinputs = inputs[:,3:,:]
+            otherinputs = otherinputs.permute(0,2,1)
+            # print(otherinputs.shape)
+            combined = torch.cat((embeds.float(),otherinputs.float()),axis=2)
+            # print(combined.shape)
+            out, _ = self.rnn(combined) # dim: batch_size x batch_max_len x lstm_hidden_dim*directions
+            # print(out.shape) 
             out = out.contiguous().view(-1, out.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
-            yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags                       #https://cs230-stanford.github.io/pytorch-nlp.html
+            yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags   
+            # print(yhats.shape)                    #https://cs230-stanford.github.io/pytorch-nlp.html
             return yhats #CrossEntropy in pytorch takes care of softmax here
 
 
@@ -402,27 +421,31 @@ def run_RNN(vectorized_data, vocab, revindicies, hidden_dim, weights_matrix_torc
         '''
         weights = []
         flat_train_labels = [item for sublist in train_labels for item in sublist]
-        for lab in range(1,10):
-            weights.append(1-(flat_train_labels.count(lab)/(len(flat_train_labels)-flat_train_labels.count(0)))) #proportional to number without tags
-        weights.insert(0,0) #zero padding values weight
+        print(revindicies['prop_to_ix'])
+        for lab in range(1,len(revindicies['prop_to_ix'].keys())):
+            weights.append(1-(flat_train_labels.count(lab)/\
+                (len(flat_train_labels)-(flat_train_labels.count(revindicies['prop_to_ix']['O'])+flat_train_labels.count(revindicies['prop_to_ix']['I-O']))))) #proportional to number without tags
+        weights.insert(revindicies['prop_to_ix']['<pad>'],0) #zero padding values weight
+        print(weights)
         return weights
-    weights = class_proportional_weights(vectorized_data['train_context_label_array'].tolist()) #zero out pads and reduce weights given to "O" objects in loss function
+    
+    weights = class_proportional_weights(vectorized_data['train_lab'].tolist()) #zero out pads and reduce weights given to "O" objects in loss function
     class_weights = torch.FloatTensor(weights).cuda()
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     #initalize model parameters and variables
-    model = RNNmodel(weights_matrix_torch, hidden_dim, bidirectional, pretrained_embeddings_status)
+    model = RNNmodel(weights_matrix_torch, hidden_dim, bidirectional, pretrained_embeddings_status, revindicies)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") #run on gpu if available...
 
     model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.005) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
+    optimizer = optim.Adam(model.parameters(), lr=0.00001) #learning rate set to 0.005 to converse faster -- change to 0.00001 if desired
     torch.backends.cudnn.benchmark = True #memory
     torch.backends.cudnn.enabled = True #memory https://blog.paperspace.com/pytorch-memory-multi-gpu-debugging/
     
     metric_list = []
     best_metric = 0 
     print("Start Training --- %s seconds ---" % (round((time.time() - start_time),2)))
-    for epoch in range(50): 
+    for epoch in range(150): 
         iteration = 0
         running_loss = 0.0 
         for i, (context, label) in enumerate(trainloader):
@@ -468,7 +491,7 @@ def run_RNN(vectorized_data, vocab, revindicies, hidden_dim, weights_matrix_torc
             # gpu_usage()
 
             # remove pads and "O" and do acc calculation:
-            padindicies = [i for i, x in enumerate(labelsfull) if x == 0 or x==1] 
+            padindicies = [i for i, x in enumerate(labelsfull) if x == revindicies['prop_to_ix']['<pad>'] or x==revindicies['prop_to_ix']['O']] 
             for index in sorted(padindicies, reverse=True):
                 del labelsfull[index]
                 del predictionsfull[index]
@@ -495,7 +518,7 @@ def run_RNN(vectorized_data, vocab, revindicies, hidden_dim, weights_matrix_torc
         for a, (context, label) in enumerate(testloader):
             label = label.contiguous().view(-1) # convert to length batch_size*seq_len
             labelsfull.extend(label.int().tolist()) #saving for pad removal and pack conversion
-            contextfull.extend(context.int().tolist())
+            contextfull.extend(context[:,2,:].int().tolist())
             context = context.to(device)
             label = label.to(device)
             yhats = model.forward(context)
@@ -511,25 +534,25 @@ def run_RNN(vectorized_data, vocab, revindicies, hidden_dim, weights_matrix_torc
         contextfull = [item for sublist in contextfull for item in sublist]
         print("--- Removing Pads and Finding Test Accuracy --- %s seconds ---" % (round((time.time() - start_time),2)))
         #remove pads and do acc calculation:
-        padindicies = [i for i, x in enumerate(labelsfull) if x == 0]
+        padindicies = [i for i, x in enumerate(labelsfull) if x == revindicies['prop_to_ix']['<pad>']]
         for index in sorted(padindicies, reverse=True):
             del labelsfull[index]
             del predictionsfull[index]
             del contextfull[index]
         metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
     print('--- Test Accuracy: {} ---'.format(metricscore))
-    print("--- Formatting Results for conlleval.py Official Evaluation --- %s seconds ---" % (round((time.time() - start_time),2)))
+    print("--- Formatting Results for evaluate.py Official Evaluation --- %s seconds ---" % (round((time.time() - start_time),2)))
     formattedcontexts = []
     formattedlabels = []
     formattedpredictions = []
     for element in labelsfull: #convert to real words and labels
-        formattedlabels.extend(labelindex[element])
+        formattedlabels.extend(indicies['ix_to_prop'][element])
     for element in predictionsfull:
-        if element == 0:
-            element = 1 #remove stray <pad> predictions
-        formattedpredictions.extend(labelindex[element])
+        if element == revindicies['prop_to_ix']['<pad>']:
+            element = revindicies['prop_to_ix']['O'] #remove stray <pad> predictions to O
+        formattedpredictions.extend(indicies['ix_to_prop'][element])
     for element in contextfull:
-        formattedcontexts.extend(wordindex[element])
+        formattedcontexts.extend(indicies['ix_to_word'][element])
     #write to file
     fname = 'results/{}--bidir={}--hidden_size={}--pretrain={}--results.txt'.format(RNNTYPE,bidirectional,hidden_dim,pretrained_embeddings_status)
     if os.path.exists(fname):
@@ -539,7 +562,7 @@ def run_RNN(vectorized_data, vocab, revindicies, hidden_dim, weights_matrix_torc
         f.write(formattedcontexts[i] + ' ' + formattedlabels[i] + ' ' + formattedpredictions[i] + '\n')
     f.close()
     print('--- {}--bidir={}--hidden_size={}--pretrain={}--results ---'.format(RNNTYPE,bidirectional,hidden_dim,pretrained_embeddings_status))
-    evaluate_conll_file(open(fname,'r')) #evaluate using conll script
+    # evaluate_conll_file(open(fname,'r')) #evaluate using conll script
 
 if __name__ == "__main__":
     main()
