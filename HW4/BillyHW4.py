@@ -194,7 +194,7 @@ def getvectors(train,test):
     y=np.array(y)
     train_sentences = y.transpose(0,2,1)
     train_labelsfull = train_sentences[:,-1,:]
-    train_sentencesfull = train_sentences[:,:-2,:]
+    train_sentencesfull = train_sentences[:,:-1,:]
     splitpoint = int(round(train_sentencesfull.shape[0]*.8))
     train_sentences = train_sentencesfull[:splitpoint,:,:]
     valid_sentences = train_sentencesfull[splitpoint:,:,:]
@@ -222,7 +222,7 @@ def getvectors(train,test):
     # print(y.transpose(0,2,1))
     test_sentences = y.transpose(0,2,1)
     test_labels = test_sentences[:,-1,:]
-    test_sentences = test_sentences[:,:-2,:]
+    test_sentences = test_sentences[:,:-1,:]
     print("--- Vectorizing Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
     vectorizeddata = defaultdict()
     vectorizeddata = {'train_sents': train_sentences,
