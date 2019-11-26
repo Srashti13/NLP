@@ -35,7 +35,7 @@ $ I-A1 O
 billion I-A1 O
 . O O
 Predicting V O
-the B-A1 O
+the B-A1 B-A1
 financial I-A1 O
 results I-A1 O
 of I-A1 O
@@ -49,7 +49,7 @@ job O O
 lately O O
 . O O
 Take V O
-Microsoft B-A1 O
+Microsoft B-A1 I-A1
 Corp. I-A1 O
 , I-A1 O
 the I-A1 O
@@ -67,7 +67,7 @@ industry I-A1 O
 bellwether I-A1 O
 . O O
 Take O O
-Microsoft B-A1 O
+Microsoft B-A1 I-A1
 Corp. I-A1 O
 , O O
 the O O

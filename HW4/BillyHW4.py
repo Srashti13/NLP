@@ -407,7 +407,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             # print(out.shape) 
             out = out.contiguous().view(-1, out.shape[2]) # dim: batch_size*batch_max_len x lstm_hidden_dim
             yhats = self.fc(out) # dim: batch_size*batch_max_len x num_tags  
-            yhats = yhats.reshape(-1,possibleargfeatures, 67)
+            # yhats = yhats.reshape(-1,possibleargfeatures, 67)
             # print(yhats.shape)                    #https://cs230-stanford.github.io/pytorch-nlp.html
             return yhats #CrossEntropy in pytorch takes care of softmax here
 
@@ -451,7 +451,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             # zero out the gradients from the old instance
             optimizer.zero_grad()
             # Run the forward pass and get predicted output
-            #label = label.contiguous().view(-1) # convert to length batch_size*seq_len
+            label = label.contiguous().view(-1) # convert to length batch_size*seq_len
             context = context.to(device)
             label = label.to(device)
             yhat = model.forward(context) #required dimensions for batching
@@ -488,7 +488,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             gc.collect()#memory
             torch.cuda.empty_cache()#memory
             # gpu_usage()
-            predictionsfull = list(itertools.chain.from_iterable(predictionsfull))
+            # predictionsfull = list(itertools.chain.from_iterable(predictionsfull))
             
             # remove pads and "O" and do acc calculation:
             padindicies = [i for i, x in enumerate(labelsfull) if x == revindicies['prop_to_ix']['<pad>'] or x==revindicies['prop_to_ix']['O']] 
@@ -516,7 +516,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
         labelsfull = []
         contextfull = []
         for a, (context, label) in enumerate(testloader):
-            #label = label.contiguous().view(-1) # convert to length batch_size*seq_len
+            label = label.contiguous().view(-1) # convert to length batch_size*seq_len
             labelsfull.extend(label.int().tolist()) #saving for pad removal and pack conversion
             contextfull.extend(context[:,2,:].int().tolist())
             context = context.to(device)
@@ -540,7 +540,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             del predictionsfull[index]
             del contextfull[index]
         metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
-    print('--- Test Accuracy: {} ---'.format(metricscore))
+    print('--- Test Accuracy: {} (with O) ---'.format(metricscore))
     print("--- Formatting Results for evaluate.py Official Evaluation --- %s seconds ---" % (round((time.time() - start_time),2)))
     formattedcontexts = []
     formattedlabels = []
