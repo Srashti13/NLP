@@ -190,7 +190,7 @@ def getvectors(train,test):
             train_sentences[-1].extend([word])
     # y=np.array([np.array(xi) for xi in train_sentences])
     length = max(map(len, train_sentences))
-    y=[xi+[[xi[0][0],xi[0][1],word_to_ix['<pad>'],word_to_ix['<pad>'],pos_to_ix['<pad>'],ner_to_ix['<pad>'],prop_to_ix['<pad>']]]*(length-len(xi)) for xi in train_sentences]
+    y=[xi+[[xi[0][0],xi[0][1],word_to_ix['<pad>'],pos_to_ix['<pad>'],ner_to_ix['<pad>'],word_to_ix['<pad>'],prop_to_ix['<pad>']]]*(length-len(xi)) for xi in train_sentences]
     y=np.array(y)
     train_sentences = y.transpose(0,2,1)
     train_labelsfull = train_sentences[:,-1,:]
@@ -216,7 +216,7 @@ def getvectors(train,test):
             test_sentences[-1].extend([word])
     # y=np.array([np.array(xi) for xi in train_sentences])
     length = max(map(len, test_sentences))
-    y=[xi+[[xi[0][0],xi[0][1],word_to_ix['<pad>'],word_to_ix['<pad>'],pos_to_ix['<pad>'],ner_to_ix['<pad>'],prop_to_ix['<pad>']]]*(length-len(xi)) for xi in test_sentences]
+    y=[xi+[[xi[0][0],xi[0][1],word_to_ix['<pad>'],pos_to_ix['<pad>'],ner_to_ix['<pad>'],word_to_ix['<pad>'],prop_to_ix['<pad>']]]*(length-len(xi)) for xi in test_sentences]
     y=np.array(y)
     # print(y.shape)
     # print(y.transpose(0,2,1))
@@ -376,7 +376,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             else:
                 embedding_dim = 300
                 self.embedding = nn.Embedding(len(vocab), embedding_dim)
-            numextrafeatures = 2
+            numextrafeatures = 3
             possibleargfeatures = len(revindicies['prop_to_ix'].keys())
             
             if RNNTYPE=="LSTM":
@@ -421,12 +421,10 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
         '''
         weights = []
         flat_train_labels = [item for sublist in train_labels for item in sublist]
-        print(revindicies['prop_to_ix'])
         for lab in range(1,len(revindicies['prop_to_ix'].keys())):
             weights.append(1-(flat_train_labels.count(lab)/\
                 (len(flat_train_labels)-(flat_train_labels.count(revindicies['prop_to_ix']['O'])+flat_train_labels.count(revindicies['prop_to_ix']['I-O']))))) #proportional to number without tags
         weights.insert(revindicies['prop_to_ix']['<pad>'],0) #zero padding values weight
-        print(weights)
         return weights
     
     weights = class_proportional_weights(vectorized_data['train_lab'].tolist()) #zero out pads and reduce weights given to "O" objects in loss function
