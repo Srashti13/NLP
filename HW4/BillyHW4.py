@@ -21,9 +21,10 @@ def main():
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     train, test = preprocessdata()
     vectorized_data, indicies, revindicies, vocab = getvectors(train, test)
-    weights_matrix_torch = build_weights_matrix(vocab, "GoogleNews-vectors-negative300.txt", embedding_dim=300)
+    # changed to glove, which gets higher accuracy
+    weights_matrix_torch = build_weights_matrix(vocab, "glove.840B.300d.txt", embedding_dim=300)
     # weights_matrix_torch = None
-    run_RNN(vectorized_data, vocab, indicies,revindicies, weights_matrix_torch=weights_matrix_torch, hidden_dim=256,
+    run_RNN(vectorized_data, vocab, indicies,revindicies, weights_matrix_torch=weights_matrix_torch, hidden_dim=128,
             bidirectional=True, pretrained_embeddings_status=True, RNNTYPE="LSTM")
 
     return
@@ -382,7 +383,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             if RNNTYPE=="LSTM":
                 print("----Using LSTM-----")
                 self.rnn = nn.LSTM(embedding_dim+numextrafeatures, hidden_size=hidden_size, batch_first=True,
-                                    bidirectional=bidirectional)
+                                    bidirectional=bidirectional, num_layers=4)
             elif RNNTYPE=="GRU":
                 print("----Using GRU-----")
                 self.rnn = nn.GRU(embedding_dim+numextrafeatures, hidden_size=hidden_size, batch_first=True,
@@ -504,7 +505,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             bestmodelparams = torch.save(model.state_dict(), 'train_valid_best.pth') #save best model
         #early stopping condition
         if epoch+1 >= 5: #start looking to stop after this many epochs
-            if metric_list[-1] < min(metric_list[-5:-1]): #if accuracy lower than lowest of last 10 values
+            if metric_list[-1] < min(metric_list[-10:-1]): #if accuracy lower than lowest of last 10 values
                 print('...Stopping Early...')
                 break
 
