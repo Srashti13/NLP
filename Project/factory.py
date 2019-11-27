@@ -55,10 +55,10 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 1000 #1306112 is full dataset
+    train_size = 3000 #1306112 is full dataset
     BATCH_SIZE = 1000
     embedding_dim = 300
-    erroranalysis = True
+    erroranalysis = False
     pretrained_embeddings_status = False
     statfeaures = True
     epochs = 5
@@ -69,7 +69,7 @@ def main():
     vectorized_data, wordindex, vocab, totalpadlength, stsvectors = get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit, stsvectors)
     
     #shows proportions of training set
-    unique, cnts = np.unique(vectorized_data['train_context_label_array'], return_counts=True) #get train class sizes
+    unique, cnts = np.unique(vectorized_data['valid_context_label_array'], return_counts=True) #get train class sizes
     print(dict(zip(unique, cnts)))
 
     #setting up embeddings if pretrained embeddings used 
@@ -81,33 +81,33 @@ def main():
         else:
             glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex)
             para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex)
-        combined_embedding = np.hstack((para_embedding*0.3,glove_embedding*0.7))
+        combined_embedding = np.hstack((para_embedding,glove_embedding))
         del para_embedding, glove_embedding
-        combined_embedding = torch.from_numpy(pca.fit_transform(combined_embedding))
+        # combined_embedding = torch.from_numpy(pca.fit_transform(combined_embedding))
     else:
         combined_embedding = None
 
     #run models
-    run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
-            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_FF(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim ,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
-            hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
-            learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
+    # run_RNN_CNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, epochs, totalpadlength, weights_matrix_torch=combined_embedding,
+    #         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True,batch_size=BATCH_SIZE,
+    #         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
 
-    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, totalpadlength, weights_matrix_torch=combined_embedding,
+    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, epochs, totalpadlength, weights_matrix_torch=combined_embedding,
         hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
         learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
     
-    run_Stat_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim,epochs, stsvectors, totalpadlength, weights_matrix_torch=combined_embedding,
-        hidden_dim=256, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
-        learning_rate=0.005, pretrained_embeddings_status=pretrained_embeddings_status)
-    return
+    # run_Stat_RNN(vectorized_data, test_ids, wordindex, len(vocab), embedding_dim, epochs, stsvectors, totalpadlength, weights_matrix_torch=combined_embedding,
+    #     hidden_dim=32, readytosubmit=readytosubmit, erroranalysis=erroranalysis, rnntype="LSTM", bidirectional_status=True, batch_size=BATCH_SIZE,
+    #     learning_rate=0.001, pretrained_embeddings_status=pretrained_embeddings_status)
+    # return
 
 def get_docs(train_size, readytosubmit, statfeaures):
 
@@ -164,7 +164,10 @@ def get_docs(train_size, readytosubmit, statfeaures):
         text=txt
         txt = replace_contractions(txt)
         txt = txt.translate(str.maketrans('', '', string.punctuation)) #removes punctuation - not used as per requirements  
-        txt = re.sub(r'\d+', '#', txt) #replace numbers with a number token
+        txt = re.sub('[0-9]{5,}', '#####', txt)
+        txt = re.sub('[0-9]{4}', '####', txt)
+        txt = re.sub('[0-9]{3}', '###', txt)
+        txt = re.sub('[0-9]{2}', '##', txt)
         txt = re.sub('(?:<[^>]+>)', '', txt)# remove html tags
         txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial
         # txt = r"This is a practice tweet :). Let's hope our-system can get it right. \U0001F923 something."
@@ -313,6 +316,13 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
     train_context_array, valid_context_array, train_context_label_array, valid_context_label_array = train_test_split(train_context_array, train_context_label_array_full, 
                                                                                                                         test_size=test_size,  random_state=1234, shuffle=True, 
                                                                                                                         stratify=train_context_label_array_full)
+    if not readytosubmit:
+        half = int(round(valid_context_array.shape[0]/2))
+        test_context_array = valid_context_array[half:,:]
+        test_context_label_array = valid_context_label_array[half:,:]
+        valid_context_array = valid_context_array[:half,:]
+        valid_context_label_array = valid_context_label_array[:half,:]
+
     arrays_and_labels = defaultdict()
     arrays_and_labels = {"train_context_array":train_context_array,
                         "train_context_label_array":train_context_label_array,
@@ -336,6 +346,12 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
         stsvectors['train'], stsvectors['valid'], stsvectors['trainlabels'], stsvectors['validlabels'] = train_test_split(stsvectors['traindata'], train_context_label_array_full, 
                                                                                                                         test_size=test_size,  random_state=1234, shuffle=True, 
                                                                                                                         stratify=train_context_label_array_full)
+
+    if not readytosubmit:
+        stsvectors['test'] = stsvectors['valid'][half:,:]
+        stsvectors['testlabels'] = stsvectors['validlabels'][half:,:]
+        stsvectors['valid'] = stsvectors['valid'][:half,:]
+        stsvectors['validlabels'] = stsvectors['validlabels'][:half,:]                                                                                                                
     # print(sum(stsvectors['validlabels'] - arrays_and_labels['valid_context_label_array'])) #confirmed same split
     print("--- Grams Created --- %s seconds ---" % (round((time.time() - start_time),2)))
     return arrays_and_labels, ix_to_word, vocab, totalpadlength, stsvectors
@@ -562,6 +578,32 @@ def run_FF(vectorized_data, test_ids, wordindex,  vocablen, embedding_dimension,
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
 
+    # test set (half of validation set) local performance
+    if not readytosubmit:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(testloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+                if not readytosubmit:
+                    del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Test F1: {} ---'.format(f1score)) 
+        print("--- %s seconds ---" % (round((time.time() - start_time),2)))
     #error analysis if desired
     if erroranalysis:
         model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
@@ -799,6 +841,32 @@ def run_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimension, 
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
 
+    # test set (half of validation set) local performance
+    if not readytosubmit:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(testloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, sentencelengths)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+                if not readytosubmit:
+                    del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Test F1: {} ---'.format(f1score)) 
+        print("--- %s seconds ---" % (round((time.time() - start_time),2)))
     #error analysis if desired
     if erroranalysis:
         model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
@@ -1025,6 +1093,32 @@ def run_RNN_CNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimensi
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
 
+    # test set (half of validation set) local performance
+    if not readytosubmit:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(testloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+                if not readytosubmit:
+                    del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Test F1: {} ---'.format(f1score)) 
+        print("--- %s seconds ---" % (round((time.time() - start_time),2)))
     #error analysis if desired
     if erroranalysis:
         model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
@@ -1174,6 +1268,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
             
         def forward(self, inputs):            
             embeds = self.embedding(inputs) # [batch_size x totalpadlength x embedding_dim]
+            embeds = self.dropout(embeds)
             h_lstm, _ = self.lstm(embeds) # [batch_size x totalpadlength x hidden_dim*num_directions]
             h_gru, _ = self.gru(h_lstm) # [batch_size x totalpadlength x hidden_dim*num_directions]
             h_lstm_attn = self.attention(h_gru) # [batch_size x hidden_dim*num_directions]
@@ -1276,6 +1371,33 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
 
+    # test set (half of validation set) local performance
+    if not readytosubmit:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(testloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+                if not readytosubmit:
+                    del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Test F1: {} ---'.format(f1score)) 
+        print("--- %s seconds ---" % (round((time.time() - start_time),2)))
+
     #error analysis if desired
     if erroranalysis:
         model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
@@ -1331,6 +1453,7 @@ def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimens
     This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
     bidirectional will make the network bidirectional
     '''
+    
     def format_tensors(vectorized_data, ydata, batch_size):
         '''
         helper function to format numpy vectors to the correct type, also determines the batch size for train, valid, and test sets
@@ -1520,6 +1643,32 @@ def run_Stat_RNN(vectorized_data, test_ids, wordindex, vocablen,embedding_dimens
                 break
 
     print("Training Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
+    # test set (half of validation set) local performance
+    if not readytosubmit:
+        model.load_state_dict(torch.load('train_valid_best.pth')) #load best model
+        with torch.no_grad():
+            predictionsfull = []
+            labelsfull = []
+            for a, (context, label) in enumerate(testloader):
+                sentencelengths = []
+                for sentence in context:
+                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
+                context = context.to(device)
+                label = label.to(device)
+                yhat = model.forward(context, sentencelengths,totalpadlength)
+                predictions = (sig_fn(yhat) > 0.5)
+                predictionsfull.extend(predictions.int().tolist())
+                labelsfull.extend(label.int().tolist())
+                if not readytosubmit:
+                    del context, label, predictions #memory
+            gc.collect()#memory
+            torch.cuda.empty_cache()#memory
+            # print('\n')
+            # gpu_usage()
+            f1score = f1_score(labelsfull,predictionsfull,average='macro') #not sure if they are using macro or micro in competition
+            f1_list.append(f1score)
+        print('--- Test F1: {} ---'.format(f1score)) 
+        print("--- %s seconds ---" % (round((time.time() - start_time),2)))
 
     #error analysis if desired
     if erroranalysis:
