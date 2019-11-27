@@ -149,32 +149,6 @@ def get_docs(train_size, readytosubmit):
     total_questions = pd.concat((train_questions,test_questions), axis=0)
     vocab = list(set([item for sublist in total_questions.values for item in sublist]))
     
-    # # use this vocab to make mispelled dict
-    # print("----Correcting Spelling----")
-    # changed = 0
-    # mispell_dict = makemispelleddict(vocab)
-    # for (i,element) in enumerate(vocab):
-    #     if element in mispell_dict.keys():
-    #         vocab[i] = replace_typical_misspell(element,mispell_dict)
-    #         changed += 1
-    # vocab = list(set(vocab))
-    # print('-- spelling of {} words corrected -- '.format(changed))
-
-    # for (i,sentence) in enumerate(train_questions):
-    #     for (j,word) in enumerate(sentence):
-    #         if word in mispell_dict.keys():
-    #             print(word)
-    #             print(train_questions[i])
-    #             print(train_questions[i][j])
-    #             print(replace_typical_misspell(word,mispell_dict))
-    #             train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
-
-    # for (i,sentence) in enumerate(test_questions):
-    #     for (j,word) in enumerate(sentence):
-    #         if word in mispell_dict.keys():
-    #             train_questions[i][j] = replace_typical_misspell(word,mispell_dict)
-    
-
     print("--- Text Extracted --- %s seconds ---" % (round((time.time() - start_time),2)))  
     return vocab, train_questions, train_labels, test_questions, train_ids, test_ids
 
