@@ -50,7 +50,7 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 15000 #1306112 is full dataset
+    train_size = 100000 #1306112 is full dataset
     BATCH_SIZE = 512
     embedding_dim = 600
     erroranalysis = False
@@ -385,15 +385,12 @@ def run_Attention_RNN(pretrainstatus, embedding_nums, stsvectors, vectorized_dat
                 self.embedding = nn.Embedding(vocablen, embedding_dim)
 
             if rnntype=="LSTM":
-                print("----Using LSTM-----")
                 self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True,
                                     bidirectional=bidirectional_status)
             elif rnntype=="GRU":
-                print("----Using GRU-----")
                 self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True,
                                     bidirectional=bidirectional_status)
             else:
-                print("----Using RNN-----")
                 self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True,
                                     bidirectional=bidirectional_status)
             self.dropout = nn.Dropout(drp)
@@ -412,13 +409,13 @@ def run_Attention_RNN(pretrainstatus, embedding_nums, stsvectors, vectorized_dat
             embeds = self.embedding(inputsrnn.long())
             embeds = self.dropout(embeds)
             out, (ht, ct) = self.rnn(embeds)
-            # out = out.permute(0,2,1) #changing for cnn work CNN
-            # out = self.conv(out) CNN
-            # out = out.permute(0,2,1) #changing back CNN
+            out = out.permute(0,2,1) #changing for cnn work CNN
+            out = self.conv(out) #CNN
+            out = out.permute(0,2,1) #changing back CNN
             max_pool, _ = torch.max(out, 1)
             rnnmeet = self.relu(max_pool)
-            # rnnmeet = self.relu(rnnmeet)   CNN
-            rnnmeet = self.relu(self.linearrnn(rnnmeet))
+            rnnmeet = self.relu(rnnmeet)   #CNN
+            # rnnmeet = self.relu(self.linearrnn(rnnmeet)) #Linear
 
             #STAT FEATS
             inputsff = inputs[:,totalpadlength:]
@@ -451,11 +448,14 @@ def run_Attention_RNN(pretrainstatus, embedding_nums, stsvectors, vectorized_dat
     test = data_utils.TensorDataset(test_data)
     testloader = data_utils.DataLoader(test, batch_size=BATCH_SIZE, shuffle=False)
 
-    print("--- Running Cross Validation ---")
+    print("--- Training Models ---")
+    start_time = time.time()
+    training_time = time.time()
     # Using K-Fold Cross Validation to train the model and predict the test set by averaging out the predictions across folds
     for i, (train_idx, valid_idx) in enumerate(splits):
-        print("\n")
-        print("--- Fold Number: {} ---".format(i+1))
+        print('\n')
+        print("--- Fold Number: {} -- {} seconds ---".format(i+1,round((time.time() - start_time),2)))
+        start_time = time.time()
         x_train_fold = torch.tensor(np.hstack((vectorized_data['train_context_array'],stsvectors['train']))[train_idx], dtype=torch.float32).to(device)
         y_train_fold = torch.tensor(vectorized_data['train_context_label_array'][train_idx], dtype=torch.float32).to(device)
         x_val_fold = torch.tensor(np.hstack((vectorized_data['train_context_array'],stsvectors['train']))[valid_idx], dtype=torch.float32).to(device)
@@ -476,7 +476,6 @@ def run_Attention_RNN(pretrainstatus, embedding_nums, stsvectors, vectorized_dat
         f1_list = []
         best_f1 = 0 
 
-        start_time = time.time()
         for epoch in range(NUM_EPOCHS):
             iteration = 0
             running_loss = 0.0
@@ -542,7 +541,7 @@ def run_Attention_RNN(pretrainstatus, embedding_nums, stsvectors, vectorized_dat
     output.to_csv('submission.csv', index=False)
 
     
-    print("Attention Model Completed --- %s seconds ---" % (round((time.time() - start_time),2)))
+    print(" Training Completed --- %s seconds for training ---" % (round((time.time() - training_time),2)))
 
 
 if __name__ == "__main__":
