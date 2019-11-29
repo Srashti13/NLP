@@ -14,6 +14,7 @@ import time
 import math
 import os
 from sklearn.model_selection import train_test_split
+from conlleval import evaluate_conll_file
 
 start_time = time.time()
 
