@@ -563,7 +563,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
         f.write(formattedcontexts[i] + ' ' + formattedlabels[i] + ' ' + formattedpredictions[i] + '\n')
     f.close()
     print('--- {}--bidir={}--hidden_size={}--pretrain={}--results ---'.format(RNNTYPE,bidirectional,hidden_dim,pretrained_embeddings_status))
-    # evaluate_conll_file(open(fname,'r')) #evaluate using conll script
+    evaluate_conll_file(open(fname,'r')) #evaluate using conll script
 
 if __name__ == "__main__":
     main()
