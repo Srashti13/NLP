@@ -39,6 +39,7 @@ def split_tag(chunk_tag):
     """
     if chunk_tag == 'O':
         return ('O', None)
+    # not including the 'V' values in the metrics calculations
     elif chunk_tag == 'V':
         return ('O', None)
     return chunk_tag.split('-', maxsplit=1)

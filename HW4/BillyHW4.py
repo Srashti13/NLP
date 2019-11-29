@@ -45,8 +45,10 @@ def preprocessdata():
                 prop_values.append(df[i])
             elif df.iloc[i] == 'None':
                 prop_values.append(df[i])
+            elif len(df.iloc[i]) > 1 and df.iloc[i][1] == 'V':
+                prop_values.append(df[i][1:-2])
             elif df.iloc[i][0] == '(' and df.iloc[i][-1] == ')':
-                prop_values.append(df.iloc[i][1:-2])
+                prop_values.append("B-"+df.iloc[i][1:-2])
             elif df.iloc[i][0] == '(':
                 prop_value = df.iloc[i][1:-1]
                 prop_values.append("B-" + df.iloc[i][1:-1])
