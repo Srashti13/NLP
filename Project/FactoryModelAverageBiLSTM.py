@@ -48,10 +48,10 @@ def main():
     The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
-    readytosubmit=False
+    readytosubmit=True
     train_size = 3000 #1306112 is full dataset
-    BATCH_SIZE = 500
-    embedding_dim = 300
+    BATCH_SIZE = 512
+    embedding_dim = 600
     erroranalysis = False
     
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
@@ -59,7 +59,7 @@ def main():
     vectorized_data, wordindex, vocab, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit)
     glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex, embed_type='glove')
     para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex, embed_type='para')
-    combined_embedding = torch.Tensor(np.mean([(para_embedding).numpy(), (glove_embedding).numpy()], axis=0))
+    combined_embedding = torch.Tensor(np.hstack((para_embedding,glove_embedding)))
     del glove_embedding
     del para_embedding
     
@@ -477,7 +477,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
         with torch.no_grad():
             for a, context in enumerate(testloader):
                 yhat = model.forward(context[0])
-                kfold_test_predictions[a*BATCH_SIZE:(a+1)*BATCH_SIZE] = sig_fn(yhat)
+                kfold_test_predictions[a*BATCH_SIZE:(a+1)*BATCH_SIZE] = (sig_fn(yhat) > 0.5).int() #ranking instead of probs
             
             
             predictionsfinal += (kfold_test_predictions/N_SPLITS)

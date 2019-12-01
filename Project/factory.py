@@ -168,7 +168,6 @@ def get_docs(train_size, readytosubmit, statfeaures):
         txt = re.sub('[0-9]{4}', '####', txt)
         txt = re.sub('[0-9]{3}', '###', txt)
         txt = re.sub('[0-9]{2}', '##', txt)
-        txt = re.sub('(?:<[^>]+>)', '', txt)# remove html tags
         txt = re.sub('([A-Z][a-z]+)',lower_repl,txt) #lowercase words that start with captial
         # txt = r"This is a practice tweet :). Let's hope our-system can get it right. \U0001F923 something."
         tokens = word_tokenize(txt)
