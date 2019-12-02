@@ -49,7 +49,7 @@ def main():
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
-    train_size = 3000 #1306112 is full dataset
+    train_size = 10000 #1306112 is full dataset
     BATCH_SIZE = 512
     embedding_dim = 600
     erroranalysis = False
@@ -299,56 +299,27 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
 
     
 
-    class RNNmodel(nn.Module):
+    class FeedForward(nn.Module):
         '''
-        RNN model that can be changed to LSTM or GRU and made bidirectional if needed 
+        FF model
         '''
-        def __init__(self, hidden_size, weights_matrix, embedding_dim, context_size, vocablen, bidirectional_status=True, rnntype="LSTM", pre_trained=True):
-            super(RNNmodel, self).__init__()
-            if bidirectional_status:
-                num_directions = 2
-            else:
-                num_directions = 1
-            drp = 0.3
-
+        def __init__(self, hidden_dim, weights_matrix_torch,embedding_dim, context_size, vocablen, pre_trained=True):
+            super(FeedForward, self).__init__()
             if pre_trained:
-                self.embedding, embedding_dim = create_emb_layer(weights_matrix)
+                self.embedding, embedding_dim = create_emb_layer(weights_matrix_torch)
             else:
                 embedding_dim = embedding_dim
                 self.embedding = nn.Embedding(vocablen, embedding_dim)
-
-            if rnntype=="LSTM":
-                print("----Using LSTM-----")
-                self.rnn = nn.LSTM(embedding_dim, hidden_size=hidden_size, batch_first=True,
-                                    bidirectional=bidirectional_status)
-            elif rnntype=="GRU":
-                print("----Using GRU-----")
-                self.rnn = nn.GRU(embedding_dim, hidden_size=hidden_size, batch_first=True,
-                                    bidirectional=bidirectional_status)
-            else:
-                print("----Using RNN-----")
-                self.rnn = nn.RNN(embedding_dim, hidden_size=hidden_size, batch_first=True,
-                                    bidirectional=bidirectional_status)
-            #generalized
-            self.dropout = nn.Dropout(drp)
-            self.relu = nn.ReLU()
-            self.linear = nn.Linear(hidden_size*num_directions*2, hidden_size*num_directions)
-            self.fc = nn.Linear(hidden_size*num_directions,1)
+            self.linear1 = nn.Linear(embedding_dim, hidden_dim)
+            self.relu = nn.ReLU() 
+            self.linear2 = nn.Linear(hidden_dim*context_size, 1)
             
-        def forward(self, inputs, sentencelengths):
-            embeds = self.embedding(inputs)
-            packedembeds = nn.utils.rnn.pack_padded_sequence(embeds,sentencelengths, batch_first=True,enforce_sorted=False)
-            out, (ht, ct) = self.rnn(packedembeds)
-            outunpacked, _ = nn.utils.rnn.pad_packed_sequence(out, batch_first=True)
-            #more generalized
-            avg_pool = torch.mean(outunpacked, 1)
-            max_pool, _ = torch.max(outunpacked, 1)
-            conc = torch.cat(( avg_pool, max_pool), 1)
-            conc = self.relu(self.linear(conc))
-            conc = self.dropout(conc)
-            # htbatchfirst = ht.contiguous().permute(1,0,2).contiguous()
-            # out = htbatchfirst.view(htbatchfirst.shape[0],-1) #get final layers of rnn
-            yhat = self.fc(conc)
+        def forward(self, inputs):
+            embeds = self.embedding(inputs) #[batch , context , embed_dim] 
+            out = self.linear1(embeds) #[batch,  context, hidden_dim]
+            out = self.relu(out) #[batch , context , hidden_dim]
+            out = out.contiguous().view(out.shape[0],-1) #[batch , context x hidden_dim]
+            yhat = self.linear2(out) #[batch ,1]
             return yhat
             
         
@@ -386,7 +357,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
         trainloader = data_utils.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
         validloader = data_utils.DataLoader(valid, batch_size=BATCH_SIZE, shuffle=False)
         
-        model = RNNmodel(HIDDEN_DIM, embedding_tensor, EMBEDDING_DIM, totalpadlength, vocablen)
+        model = FeedForward(HIDDEN_DIM, embedding_tensor, EMBEDDING_DIM, totalpadlength, vocablen)
         model.to(device)
         criterion = nn.BCEWithLogitsLoss()
         optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate)
@@ -401,14 +372,11 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
             running_loss = 0.0
             model.train()
             for i, (context, label) in enumerate(trainloader):
-                sentencelengths = []
-                for sentence in context:
-                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
                 iteration += 1
                 # zero out the gradients from the old instance
                 optimizer.zero_grad()
                 # Run the forward pass and get predicted output
-                yhat = model.forward(context, sentencelengths) #required dimensions for batching
+                yhat = model.forward(context) #required dimensions for batching
                 # Compute Binary Cross-Entropy
                 loss = criterion(yhat, label)
                 loss.backward()
@@ -428,10 +396,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
                 valid_predictions = torch.zeros((len(x_val_fold),1))
                 valid_labels = torch.zeros((len(x_val_fold),1))
                 for a, (context, label) in enumerate(validloader):
-                    sentencelengths = []
-                    for sentence in context:
-                        sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
-                    yhat = model.forward(context, sentencelengths)
+                    yhat = model.forward(context)
                     valid_predictions[a*BATCH_SIZE:(a+1)*BATCH_SIZE] = (sig_fn(yhat) > 0.5).int()
                     valid_labels[a*BATCH_SIZE:(a+1)*BATCH_SIZE] = label.int()
     
@@ -452,10 +417,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
         model.eval()
         with torch.no_grad():
             for a, context in enumerate(testloader):
-                sentencelengths = []
-                for sentence in context[0]:
-                    sentencelengths.append(len(sentence.tolist())-sentence.tolist().count(0))
-                yhat = model.forward(context[0], sentencelengths)
+                yhat = model.forward(context[0])
                 kfold_test_predictions[a*BATCH_SIZE:(a+1)*BATCH_SIZE] = (sig_fn(yhat) > 0.5).int()  #ranking instead of probs
             
             
@@ -471,7 +433,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
     output.to_csv('submission.csv', index=False)
 
     
-    print("BILSTM Model Completed --- %s seconds ---" % (round((time.time() - start_time),2)))
+    print("Attention Model Completed --- %s seconds ---" % (round((time.time() - start_time),2)))
 
 
 if __name__ == "__main__":

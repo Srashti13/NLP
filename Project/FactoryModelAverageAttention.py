@@ -57,8 +57,8 @@ def main():
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     vocab, train_questions, train_labels, test_questions, train_ids, test_ids = get_docs(train_size, readytosubmit) 
     vectorized_data, wordindex, vocab, totalpadlength = get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit)
-    glove_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex, embed_type='glove')
-    para_embedding = build_weights_matrix(vocab, localfolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex, embed_type='para')
+    glove_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/glove.840B.300d/glove.840B.300d.txt", wordindex=wordindex, embed_type='glove')
+    para_embedding = build_weights_matrix(vocab, kagglefolder + r"embeddings/paragram_300_sl999/paragram_300_sl999.txt", wordindex=wordindex, embed_type='para')
     combined_embedding = torch.Tensor(np.hstack((para_embedding,glove_embedding)))
     del glove_embedding
     del para_embedding
@@ -477,7 +477,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
         with torch.no_grad():
             for a, context in enumerate(testloader):
                 yhat = model.forward(context[0])
-                kfold_test_predictions[a*BATCH_SIZE:(a+1)*BATCH_SIZE] = sig_fn(yhat)  #ranking instead of probs
+                kfold_test_predictions[a*BATCH_SIZE:(a+1)*BATCH_SIZE] = (sig_fn(yhat) > 0.5).int()  #ranking instead of probs
             
             
             predictionsfinal += (kfold_test_predictions/N_SPLITS)
