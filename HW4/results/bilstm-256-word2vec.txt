@@ -1,0 +1,97 @@
+--- Start Program --- 0.0 seconds ---
+--- Extracting Train --- 0.0 seconds ---
+--- Extracting Test --- 14.24 seconds ---
+--- Splitting Train into Sentences --- 23.05 seconds ---
+--- Splitting Test into Sentences --- 72.59 seconds ---
+--- Vectorizing --- 93.23 seconds ---
+--- Vectorizing Complete --- 100.13 seconds ---
+--- Building Pretrained Embedding Index  --- 100.14 seconds ---
+86.21% (6935/8044) of the vocabulary were in the pre-trained embedding.
+----Using LSTM-----
+Start Training --- 171.11 seconds ---
+--- Epoch: 1 | Validation Accuracy (non-O): 0.1426056338028169 ---
+--- Epoch: 2 | Validation Accuracy (non-O): 0.38566118935837246 ---
+--- Epoch: 3 | Validation Accuracy (non-O): 0.4142214397496088 ---
+--- Epoch: 4 | Validation Accuracy (non-O): 0.508998435054773 ---
+--- Epoch: 5 | Validation Accuracy (non-O): 0.5871478873239436 ---
+--- Epoch: 6 | Validation Accuracy (non-O): 0.547926447574335 ---
+--- Epoch: 7 | Validation Accuracy (non-O): 0.48953442879499215 ---
+--- Epoch: 8 | Validation Accuracy (non-O): 0.5555555555555556 ---
+--- Epoch: 9 | Validation Accuracy (non-O): 0.5863654147104851 ---
+--- Epoch: 10 | Validation Accuracy (non-O): 0.5105633802816901 ---
+--- Epoch: 11 | Validation Accuracy (non-O): 0.5541862284820032 ---
+--- Epoch: 12 | Validation Accuracy (non-O): 0.5878325508607198 ---
+--- Epoch: 13 | Validation Accuracy (non-O): 0.5292449139280125 ---
+--- Epoch: 14 | Validation Accuracy (non-O): 0.5345266040688575 ---
+--- Epoch: 15 | Validation Accuracy (non-O): 0.5581964006259781 ---
+--- Epoch: 16 | Validation Accuracy (non-O): 0.548904538341158 ---
+--- Epoch: 17 | Validation Accuracy (non-O): 0.5769757433489828 ---
+--- Epoch: 18 | Validation Accuracy (non-O): 0.5796165884194053 ---
+--- Epoch: 19 | Validation Accuracy (non-O): 0.5797143974960877 ---
+--- Epoch: 20 | Validation Accuracy (non-O): 0.5690532081377152 ---
+--- Epoch: 21 | Validation Accuracy (non-O): 0.5471439749608764 ---
+--- Epoch: 22 | Validation Accuracy (non-O): 0.5804968701095462 ---
+--- Epoch: 23 | Validation Accuracy (non-O): 0.5664123630672926 ---
+--- Epoch: 24 | Validation Accuracy (non-O): 0.5914514866979655 ---
+--- Epoch: 25 | Validation Accuracy (non-O): 0.5881259780907668 ---
+--- Epoch: 26 | Validation Accuracy (non-O): 0.5694444444444444 ---
+--- Epoch: 27 | Validation Accuracy (non-O): 0.6064162754303599 ---
+--- Epoch: 28 | Validation Accuracy (non-O): 0.5504694835680751 ---
+--- Epoch: 29 | Validation Accuracy (non-O): 0.5703247261345853 ---
+--- Epoch: 30 | Validation Accuracy (non-O): 0.5873435054773083 ---
+--- Epoch: 31 | Validation Accuracy (non-O): 0.5936032863849765 ---
+--- Epoch: 32 | Validation Accuracy (non-O): 0.5959507042253521 ---
+--- Epoch: 33 | Validation Accuracy (non-O): 0.5849960876369327 ---
+--- Epoch: 34 | Validation Accuracy (non-O): 0.594385758998435 ---
+--- Epoch: 35 | Validation Accuracy (non-O): 0.5620109546165885 ---
+--- Epoch: 36 | Validation Accuracy (non-O): 0.6026017214397497 ---
+--- Epoch: 37 | Validation Accuracy (non-O): 0.5925273865414711 ---
+--- Epoch: 38 | Validation Accuracy (non-O): 0.5990805946791862 ---
+--- Epoch: 39 | Validation Accuracy (non-O): 0.5814749608763693 ---
+--- Epoch: 40 | Validation Accuracy (non-O): 0.598982785602504 ---
+--- Epoch: 41 | Validation Accuracy (non-O): 0.5892996870109546 ---
+--- Epoch: 42 | Validation Accuracy (non-O): 0.5834311424100157 ---
+--- Epoch: 43 | Validation Accuracy (non-O): 0.5838223787167449 ---
+--- Epoch: 44 | Validation Accuracy (non-O): 0.5940923317683882 ---
+--- Epoch: 45 | Validation Accuracy (non-O): 0.5901799687010955 ---
+--- Epoch: 46 | Validation Accuracy (non-O): 0.5908646322378717 ---
+--- Epoch: 47 | Validation Accuracy (non-O): 0.5640649452269171 ---
+...Stopping Early...
+Training Complete --- 353.57 seconds ---
+--- Removing Pads and Finding Test Accuracy --- 354.46 seconds ---
+--- Test Accuracy: 0.7159353776116365 (with O) ---
+--- Formatting Results for Official Evaluation --- 355.56 seconds ---
+--- LSTM--bidir=True--hidden_size=256--pretrain=True--results ---
+processed 54037 tokens with 5370 phrases; found: 7776 phrases; correct: 2402.
+accuracy:  60.17%; (non-O)
+accuracy:  71.59%; precision:  30.89%; recall:  44.73%; FB1:  36.54
+               A0: precision:  42.75%; recall:  58.07%; FB1:  49.24  1792
+               A1: precision:  30.23%; recall:  45.65%; FB1:  36.37  2759
+               A2: precision:   9.24%; recall:  11.71%; FB1:  10.33  541
+               A3: precision:   3.39%; recall:   2.86%; FB1:   3.10  59
+               A4: precision:  10.45%; recall:  18.42%; FB1:  13.33  67
+               A5: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+           AM-ADV: precision:   6.27%; recall:  12.69%; FB1:   8.39  399
+           AM-CAU: precision:   0.00%; recall:   0.00%; FB1:   0.00  53
+           AM-DIR: precision:  15.91%; recall:  20.00%; FB1:  17.72  44
+           AM-DIS: precision:  58.52%; recall:  60.31%; FB1:  59.40  135
+           AM-EXT: precision:  15.00%; recall:  33.33%; FB1:  20.69  20
+           AM-LOC: precision:   6.45%; recall:  16.67%; FB1:   9.30  279
+           AM-MNR: precision:   9.49%; recall:  11.03%; FB1:  10.20  158
+           AM-MOD: precision:  93.81%; recall:  88.35%; FB1:  91.00  194
+           AM-NEG: precision:  91.74%; recall:  97.09%; FB1:  94.34  109
+           AM-PNC: precision:   2.42%; recall:  14.71%; FB1:   4.15  207
+           AM-PRD: precision:   0.00%; recall:   0.00%; FB1:   0.00  1
+           AM-REC: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+           AM-TMP: precision:  31.08%; recall:  46.46%; FB1:  37.25  592
+             C-A0: precision:   0.00%; recall:   0.00%; FB1:   0.00  2
+             C-A1: precision:  12.41%; recall:  17.89%; FB1:  14.66  137
+              C-V: precision:   0.00%; recall:   0.00%; FB1:   0.00  2
+                O: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+             R-A0: precision:  46.15%; recall:  75.86%; FB1:  57.39  143
+             R-A1: precision:  50.00%; recall:  40.79%; FB1:  44.93  62
+             R-A2: precision:  50.00%; recall:  14.29%; FB1:  22.22  2
+         R-AM-CAU: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+         R-AM-LOC: precision:  85.71%; recall:  66.67%; FB1:  75.00  7
+         R-AM-MNR: precision:   0.00%; recall:   0.00%; FB1:   0.00  0
+         R-AM-TMP: precision:  33.33%; recall:  25.00%; FB1:  28.57  12

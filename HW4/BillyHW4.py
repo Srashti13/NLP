@@ -1,4 +1,18 @@
-#%% Homework 4
+'''
+AIT 726 Homework 4
+12/5/2019
+Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
+Complete the CoNLL-2005 semantic role labeling competition
+Command to run the file: python HW4.py 
+i. main - runs all the functions
+    i. preprocessdata - read the train and test files which were extracted using bash scripts. Also converts tagging to BIO format.
+    This also seperates each sentence into multiple entries for each target verb. 
+    ii. getvectors - building matricies for each sentence with all of the features. Tree based features are currently not used in this
+    implementation.
+    iii. build_weights_matrix - takes the information from the word2vec file and builds a matrix with the embeddings 
+    iv. run_RNN - runs a bilstm on the numpy vectors and outputs the performance on the test set using a modified version of the 
+    conlleval file in previous homeworks as the script in the 2005 competition is written in Perl.
+'''
 import re
 from collections import defaultdict
 import numpy as np
@@ -16,27 +30,28 @@ import os
 from sklearn.model_selection import train_test_split
 from conlleval import evaluate_conll_file
 
-start_time = time.time()
+start_time = time.time() #mark start time
 
 def main():
     print("--- Start Program --- %s seconds ---" % (round((time.time() - start_time),2)))
     train, test = preprocessdata()
     vectorized_data, indicies, revindicies, vocab = getvectors(train, test)
-    # changed to glove, which gets higher accuracy
-    weights_matrix_torch = build_weights_matrix(vocab, "glove.840B.300d.txt", embedding_dim=300)
-    # weights_matrix_torch = None
-    run_RNN(vectorized_data, vocab, indicies,revindicies, weights_matrix_torch=weights_matrix_torch, hidden_dim=128,
+    #glove 300 also performs well
+    weights_matrix_torch = build_weights_matrix(vocab, "GoogleNews-vectors-negative300.txt", embedding_dim=300)
+    # weights_matrix_torch = None #use this and pretrained_embeddings_status=False for non-pretrained embeddings
+    run_RNN(vectorized_data, vocab, indicies,revindicies, weights_matrix_torch=weights_matrix_torch, hidden_dim=256,
             bidirectional=True, pretrained_embeddings_status=True, RNNTYPE="LSTM")
 
     return
 
 def preprocessdata():
     '''
-    gets DF of data with BIO taggings
+    gets DF of data with BIO taggings and seperates each sentence into multiple tagged sentences for each taret verb
+    in the sentences
     '''
     def BIOconversion(df):
         '''
-        convert to BIO taggings
+        function to convert columns into to BIO taggings for each sentence
         '''
         prop_values = []
         prop_value = "O"
@@ -62,8 +77,10 @@ def preprocessdata():
             else:
                 prop_values.append(prop_value)     
         return prop_values
+
+
     print("--- Extracting Train --- %s seconds ---" % (round((time.time() - start_time),2)))
-    train = r"data.wsj/train-set.txt"
+    train = r"data.wsj/train-set.txt" #getting the training data into a document
     vocab = defaultdict(list)
     doc = []
     with open(train) as f:
@@ -76,17 +93,16 @@ def preprocessdata():
             else:
                 doc.append([sentence] + a)
 
-    train_df = pd.DataFrame(doc)
+    train_df = pd.DataFrame(doc) #convert to dataframe and name columns and remove blank values 
     train_df.columns = ["sentence", "word","pos","full_tree","ner","targetverb","prop1","prop2","prop3","prop4","prop5","prop6","prop7","prop8","prop9"]
-    # print(train_df['prop1'].head(30))
     train_df.replace("", np.nan, inplace=True)
     train_df = train_df.fillna("None")
     for col in train_df.columns[6:]:
-        train_df[col] = BIOconversion(train_df[col]) #all props to bio notation
-    train_df['ner'] = BIOconversion(train_df['ner']) #all ner to bio notation
-    # print(train_df.head(50))
+        train_df[col] = BIOconversion(train_df[col]) #all cols to bio notation
+    train_df['ner'] = BIOconversion(train_df['ner']) #named entity to bio notation also
+
     print("--- Extracting Test --- %s seconds ---" % (round((time.time() - start_time),2)))
-    #preprocess test 
+    #preprocess test the same way  
     test = r"data.wsj/test-set.txt"
     vocab = defaultdict(list)
     doc = []
@@ -107,10 +123,7 @@ def preprocessdata():
     for col in test_df.columns[6:]:
         test_df[col] = BIOconversion(test_df[col])
     test_df['ner']= BIOconversion(test_df['ner'])
-    # print(test_df.loc[test_df['prop1'] == 'None'])
-    # print(test_df.iloc[12850:12890,:])
-    # print(train_df.head(50))
-    #drop training and testing sentence which have no arguments
+
     print("--- Splitting Train into Sentences --- %s seconds ---" % (round((time.time() - start_time),2)))
     #split into seperate sentences for each target verb
     trainsplit_df = pd.DataFrame()
@@ -129,8 +142,9 @@ def preprocessdata():
                         df2=df2.reindex(columns=['sentence','verbnum','word','pos','full_tree','ner','targetverb','prop'])
                         trainsplit_df = pd.concat([trainsplit_df,df2],axis=0, sort=False)
                         number +=1
-    # print(trainsplit_df)
+
     print("--- Splitting Test into Sentences --- %s seconds ---" % (round((time.time() - start_time),2)))
+    #same for test
     testsplit_df = pd.DataFrame()
     for s in test_df.sentence.unique():
         number = 0
@@ -147,16 +161,15 @@ def preprocessdata():
                         df2=df2.reindex(columns=['sentence','verbnum','word','pos','full_tree','ner','targetverb','prop'])
                         testsplit_df = pd.concat([testsplit_df,df2],axis=0, sort=False)
                         number +=1
-    # print(testsplit_df.head(50))
     return trainsplit_df, testsplit_df
 
 def getvectors(train,test):
     '''
-    get numpy arrays for NN
+    get numpy arrays for NN from the dataframes for test and train
     '''
     train =train.drop(['full_tree'],axis=1)
     test =test.drop(['full_tree'],axis=1)
-    full = pd.concat([train,test])
+    full = pd.concat([train,test]) #combine into a full dataset for indexing
     print("--- Vectorizing --- %s seconds ---" % (round((time.time() - start_time),2)))
     #index
     wordvocab = full['word'].unique().tolist() + ['<pad>']
@@ -168,7 +181,7 @@ def getvectors(train,test):
     vocab = full['prop'].unique().tolist() + ['<pad>']
     prop_to_ix = {prop: i for i, prop in enumerate(set(vocab))} #prop vocabulary
     
-    #convert to numeric features
+    #convert to numeric features by appplying index
     train['word'] = train['word'].apply(lambda x: word_to_ix[x])
     test['word'] = test['word'].apply(lambda x: word_to_ix[x])
     
@@ -192,13 +205,14 @@ def getvectors(train,test):
             combos.append((word[0],word[1]))
         else:
             train_sentences[-1].extend([word])
-    # y=np.array([np.array(xi) for xi in train_sentences])
+    # pad sentences so same length
     length = max(map(len, train_sentences))
     y=[xi+[[xi[0][0],xi[0][1],word_to_ix['<pad>'],pos_to_ix['<pad>'],ner_to_ix['<pad>'],word_to_ix['<pad>'],prop_to_ix['<pad>']]]*(length-len(xi)) for xi in train_sentences]
     y=np.array(y)
-    train_sentences = y.transpose(0,2,1)
-    train_labelsfull = train_sentences[:,-1,:]
-    train_sentencesfull = train_sentences[:,:-1,:]
+    train_sentences = y.transpose(0,2,1) # put into proper format [sentences x words x features per word]
+    train_labelsfull = train_sentences[:,-1,:] # get labels
+    train_sentencesfull = train_sentences[:,:-1,:] #gt features
+    #split nito test and train, using 20% as development set
     splitpoint = int(round(train_sentencesfull.shape[0]*.8))
     train_sentences = train_sentencesfull[:splitpoint,:,:]
     valid_sentences = train_sentencesfull[splitpoint:,:,:]
@@ -228,6 +242,7 @@ def getvectors(train,test):
     test_labels = test_sentences[:,-1,:]
     test_sentences = test_sentences[:,:-1,:]
     print("--- Vectorizing Complete --- %s seconds ---" % (round((time.time() - start_time),2)))
+    #send to output
     vectorizeddata = defaultdict()
     vectorizeddata = {'train_sents': train_sentences,
                       'train_lab': train_labels,
@@ -386,7 +401,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             if RNNTYPE=="LSTM":
                 print("----Using LSTM-----")
                 self.rnn = nn.LSTM(embedding_dim+numextrafeatures, hidden_size=hidden_size, batch_first=True,
-                                    bidirectional=bidirectional, num_layers=4)
+                                    bidirectional=bidirectional)
             elif RNNTYPE=="GRU":
                 print("----Using GRU-----")
                 self.rnn = nn.GRU(embedding_dim+numextrafeatures, hidden_size=hidden_size, batch_first=True,
@@ -545,7 +560,7 @@ def run_RNN(vectorized_data, vocab, revindicies,indicies, hidden_dim, weights_ma
             del contextfull[index]
         metricscore = accuracy_score(labelsfull,predictionsfull) #not sure if they are using macro or micro in competition
     print('--- Test Accuracy: {} (with O) ---'.format(metricscore))
-    print("--- Formatting Results for evaluate.py Official Evaluation --- %s seconds ---" % (round((time.time() - start_time),2)))
+    print("--- Formatting Results for Official Evaluation --- %s seconds ---" % (round((time.time() - start_time),2)))
     formattedcontexts = []
     formattedlabels = []
     formattedpredictions = []
