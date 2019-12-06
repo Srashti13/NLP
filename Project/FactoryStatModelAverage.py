@@ -1,14 +1,23 @@
 """
 AIT726 Project -- Insincere Question Classification Due 10/10/2019
 https://www.kaggle.com/c/quora-insincere-questions-classification
-This project deals with the 
+This project deals with addressing illegitimate questions in online question answering
+(QA) forums. A dataset obtained from Kaggle regarding questions posted from users on Quora
+is used for both testing and evaluation. 
 Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
-Command to run the file: python HW2.py 
+Command to run the file: python FactoryStatModelAverage.py 
 i. main - runs all of the functions
-    i. get_docs - tokenizes all tweets, returns a list of tokenized sentences and a list of all tokens
-    ii. get_ngrams_vector 
+    i. get_docs - tokenizes and preprocesses the text of the questions. Returns the vocabulary,
+                  training questions and labels, test questions and labels, and stat features.
+                  If readytosubmit = True, returns the specified size of the training set. 
+    ii. get_context_vector - takes the pre-processed questions as input and transforms them
+                             into array form for easy use in neural methods. Returns arrays and labels,
+                             index-to-word mapping, the entire vocabulary, and the total padding length.
+    iii. build_weights_matrix - takes the entire vocabulary and maps it to a pre-trained embedding.
+                                Returns the mapped pre-trained embedding in numpy array form.
+    iv. run_stat_rnn - runs the neural network with LSTM-CNN and feature stats and predicts on the test set.
+                            The predictions are saved to a csv titled 'submission.csv'.
 """
-
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import os
@@ -76,7 +85,7 @@ def main():
     else:
         combined_embedding = None
     
-    run_Attention_RNN(pretrained_embeddings_status, embedding_dim, statvectors, vectorized_data, test_ids, wordindex, len(vocab), combined_embedding, totalpadlength, num_epochs=3, 
+    run_stat_rnn(pretrained_embeddings_status, embedding_dim, statvectors, vectorized_data, test_ids, wordindex, len(vocab), combined_embedding, totalpadlength, num_epochs=3, 
                       threshold=0.5, nsplits=5, hidden_dim=64, learning_rate=0.001, batch_size=BATCH_SIZE)
 
     
@@ -225,13 +234,7 @@ def get_docs(train_size, readytosubmit, statfeaures):
 
 def get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit):
     '''
-    Construct your n-grams: Create positive n-gram samples by collecting all pairs of adjacent
-    tokens. Create 2 negative samples for each positive sample by keeping the first word the same
-    as the positive sample, but randomly sampling the rest of the corpus for the second word. The
-    second word can be any word in the corpus except for the first word itself. 
-    
-    This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
-    --creates 2 fake grams for every real gram 
+    This functions takes the tokenized questions and creates the numpy arrays needed for the neural network.
     '''
     word_to_ix = {word: i+1 for i, word in enumerate(vocab)} #index vocabulary
     word_to_ix['XXPADXX'] = 0 #set up padding
@@ -346,7 +349,7 @@ def build_weights_matrix(vocab, embedding_file, wordindex, embed_type):
     return torch.from_numpy(weights_matrix)
 
 
-def run_Attention_RNN(pretrainstatus, embedding_nums, stsvectors, vectorized_data, test_ids, wordindex, vocablen, embedding_tensor, totalpadlength, num_epochs=3, 
+def run_stat_rnn(pretrainstatus, embedding_nums, stsvectors, vectorized_data, test_ids, wordindex, vocablen, embedding_tensor, totalpadlength, num_epochs=3, 
      threshold=0.5, nsplits=5, hidden_dim=64, learning_rate=0.001,
      batch_size=500):
     '''
