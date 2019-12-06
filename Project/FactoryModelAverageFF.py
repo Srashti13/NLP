@@ -5,7 +5,7 @@ This project deals with addressing illegitimate questions in online question ans
 (QA) forums. A dataset obtained from Kaggle regarding questions posted from users on Quora
 is used for both testing and evaluation. 
 Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
-Command to run the file: python FactoryModelAverageAttention.py 
+Command to run the file: python FactoryModelAverageFF.py 
 i. main - runs all of the functions
     i. get_docs - tokenizes and preprocesses the text of the questions. Returns the vocabulary,
                   training questions and labels, and test questions and labels.
