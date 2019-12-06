@@ -15,7 +15,7 @@ i. main - runs all of the functions
                              index-to-word mapping, the entire vocabulary, and the total padding length.
     iii. build_weights_matrix - takes the entire vocabulary and maps it to a pre-trained embedding.
                                 Returns the mapped pre-trained embedding in numpy array form.
-    iv. biLSTM_CNN - runs the neural network with bidirectional LSTM-CNN and predicts on the test set.
+    iv. biLSTM - runs the neural network with bidirectional LSTM and predicts on the test set.
                             The predictions are saved to a csv titled 'submission.csv'.
 """
 
@@ -73,7 +73,7 @@ def main():
     del glove_embedding
     del para_embedding
     
-    biLSTM_CNN(vectorized_data, test_ids, wordindex, len(vocab), combined_embedding, totalpadlength, num_epochs=3, 
+    biLSTM(vectorized_data, test_ids, wordindex, len(vocab), combined_embedding, totalpadlength, num_epochs=3, 
                       threshold=0.5, nsplits=5, hidden_dim=60, learning_rate=0.001, batch_size=BATCH_SIZE)
 
     
@@ -282,7 +282,7 @@ def build_weights_matrix(vocab, embedding_file, wordindex, embed_type):
     return torch.from_numpy(weights_matrix)
 
 
-def biLSTM_CNN(vectorized_data, test_ids, wordindex, vocablen, embedding_tensor, totalpadlength, num_epochs=3, 
+def biLSTM(vectorized_data, test_ids, wordindex, vocablen, embedding_tensor, totalpadlength, num_epochs=3, 
      threshold=0.5, nsplits=5, hidden_dim=100, learning_rate=0.001,
      batch_size=500):
     '''
