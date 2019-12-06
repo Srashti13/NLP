@@ -1,12 +1,22 @@
 """
 AIT726 Project -- Insincere Question Classification Due 10/10/2019
 https://www.kaggle.com/c/quora-insincere-questions-classification
-This project deals with the 
+This project deals with addressing illegitimate questions in online question answering
+(QA) forums. A dataset obtained from Kaggle regarding questions posted from users on Quora
+is used for both testing and evaluation. 
 Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
-Command to run the file: python HW2.py 
+Command to run the file: python FactoryModelAverageAttention.py 
 i. main - runs all of the functions
-    i. get_docs - tokenizes all tweets, returns a list of tokenized sentences and a list of all tokens
-    ii. get_ngrams_vector 
+    i. get_docs - tokenizes and preprocesses the text of the questions. Returns the vocabulary,
+                  training questions and labels, and test questions and labels.
+                  If readytosubmit = True, returns the specified size of the training set. 
+    ii. get_context_vector - takes the pre-processed questions as input and transforms them
+                             into array form for easy use in neural methods. Returns arrays and labels,
+                             index-to-word mapping, the entire vocabulary, and the total padding length.
+    iii. build_weights_matrix - takes the entire vocabulary and maps it to a pre-trained embedding.
+                                Returns the mapped pre-trained embedding in numpy array form.
+    iv. biLSTM_CNN - runs the neural network with bidirectional LSTM-CNN and predicts on the test set.
+                            The predictions are saved to a csv titled 'submission.csv'.
 """
 
 import numpy as np # linear algebra
@@ -45,7 +55,7 @@ start_time = time.time()
 
 def main():
     '''
-    The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
+    The main function. This is used to get/tokenize the questions, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=False
@@ -63,7 +73,7 @@ def main():
     del glove_embedding
     del para_embedding
     
-    run_Attention_RNN(vectorized_data, test_ids, wordindex, len(vocab), combined_embedding, totalpadlength, num_epochs=3, 
+    biLSTM_CNN(vectorized_data, test_ids, wordindex, len(vocab), combined_embedding, totalpadlength, num_epochs=3, 
                       threshold=0.5, nsplits=5, hidden_dim=60, learning_rate=0.001, batch_size=BATCH_SIZE)
 
     
@@ -278,7 +288,7 @@ def build_weights_matrix(vocab, embedding_file, wordindex, embed_type):
     return torch.from_numpy(weights_matrix)
 
 
-def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_tensor, totalpadlength, num_epochs=3, 
+def biLSTM_CNN(vectorized_data, test_ids, wordindex, vocablen, embedding_tensor, totalpadlength, num_epochs=3, 
      threshold=0.5, nsplits=5, hidden_dim=100, learning_rate=0.001,
      batch_size=500):
     '''
