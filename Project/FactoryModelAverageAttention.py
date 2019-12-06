@@ -165,13 +165,7 @@ def get_docs(train_size, readytosubmit):
 
 def get_context_vector(vocab, train_questions, train_labels, test_questions, readytosubmit):
     '''
-    Construct your n-grams: Create positive n-gram samples by collecting all pairs of adjacent
-    tokens. Create 2 negative samples for each positive sample by keeping the first word the same
-    as the positive sample, but randomly sampling the rest of the corpus for the second word. The
-    second word can be any word in the corpus except for the first word itself. 
-    
-    This functions takes the docs and tokenized sentences and creates the numpy arrays needed for the neural network.
-    --creates 2 fake grams for every real gram 
+    This functions takes the tokenized questions and creates the numpy arrays needed for the neural network.
     '''
     word_to_ix = {word: i+1 for i, word in enumerate(vocab)} #index vocabulary
     word_to_ix['XXPADXX'] = 0 #set up padding
