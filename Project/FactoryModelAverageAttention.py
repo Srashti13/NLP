@@ -1,12 +1,22 @@
 """
 AIT726 Project -- Insincere Question Classification Due 10/10/2019
 https://www.kaggle.com/c/quora-insincere-questions-classification
-This project deals with the 
+This project deals with addressing illegitimate questions in online question answering
+(QA) forums. A dataset obtained from Kaggle regarding questions posted from users on Quora
+is used for both testing and evaluation. 
 Authors: Srashti Agrawal, Billy Ermlick, Nick Newman
-Command to run the file: python HW2.py 
+Command to run the file: python FactoryModelAverageAttention.py 
 i. main - runs all of the functions
-    i. get_docs - tokenizes all tweets, returns a list of tokenized sentences and a list of all tokens
-    ii. get_ngrams_vector 
+    i. get_docs - tokenizes and preprocesses the text of the questions. Returns the vocabulary,
+                  training questions and labels, and test questions and labels.
+                  If readytosubmit = True, returns the specified size of the training set. 
+    ii. get_context_vector - takes the pre-processed questions as input and transforms them
+                             into array form for easy use in neural methods. Returns arrays and labels,
+                             index-to-word mapping, the entire vocabulary, and the total padding length.
+    iii. build_weights_matrix - takes the entire vocabulary and maps it to a pre-trained embedding.
+                                Returns the mapped pre-trained embedding in numpy array form.
+    iv. run_Attention_RNN - runs the neural network with attention and predicts on the test set.
+                            The predictions are saved to a csv titled 'submission.csv'.
 """
 
 import numpy as np # linear algebra
@@ -45,7 +55,7 @@ start_time = time.time()
 
 def main():
     '''
-    The main function. This is used to get/tokenize the documents, create vectors for input into the language model based on
+    The main function. This is used to get/tokenize the questions, create vectors for input into the language model based on
     a number of grams, and input the vectors into the model for training and evaluation.
     '''
     readytosubmit=True
@@ -75,7 +85,7 @@ def get_docs(train_size, readytosubmit):
     capital words (e.g., USA). Do not remove stopwords. Tokenize at white space and also at each
     punctuation. Consider emoticons in this process. You can use an emoticon tokenizer, if you so
     choose. If yes, specify which one. 
-    This function tokenizes and gets all of the text from the documents. it also divides the text into sentences 
+    This function tokenizes and gets all of the text from the questions. it also divides the text into sentences 
     and tokenizes each sentence. That way our model doesn't learn weird crossovers between the end of one sentence
     to the start of another. 
     '''
@@ -160,7 +170,7 @@ def get_context_vector(vocab, train_questions, train_labels, test_questions, rea
     as the positive sample, but randomly sampling the rest of the corpus for the second word. The
     second word can be any word in the corpus except for the first word itself. 
     
-    This functions takes the docs and tokenized sentences and creates the numpyarrays needed for the neural network.
+    This functions takes the docs and tokenized sentences and creates the numpy arrays needed for the neural network.
     --creates 2 fake grams for every real gram 
     '''
     word_to_ix = {word: i+1 for i, word in enumerate(vocab)} #index vocabulary
@@ -282,7 +292,7 @@ def run_Attention_RNN(vectorized_data, test_ids, wordindex, vocablen, embedding_
      threshold=0.5, nsplits=5, hidden_dim=100, learning_rate=0.001,
      batch_size=500):
     '''
-    This function uses pretrained embeddings loaded from a file to build an RNN of various types based on the parameters
+    This function uses pretrained embeddings loaded from a file to build a neural network of various types based on the parameters
     bidirectional will make the network bidirectional
     '''
     
